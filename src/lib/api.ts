@@ -305,3 +305,45 @@ export const billingApi = {
   updateSubscription: async (data: any) => 
     api.put("/billing/subscription", data),
 };
+
+// Upload API
+export const uploadApi = {
+  initiate: async (data: { fileName: string; fileSize: number; contentType: string }) =>
+    api.post("/upload/initiate", data),
+
+  uploadChunk: async (formData: FormData) => {
+    const url = `${API_BASE_URL}/upload/chunk`;
+    const token = localStorage.getItem("auth_token");
+    
+    const response = await fetch(url, {
+      method: "POST",
+      headers: {
+        Authorization: token ? `Bearer ${token}` : "",
+      },
+      body: formData,
+    });
+
+    if (!response.ok) {
+      throw new Error(`Upload chunk failed: ${response.status}`);
+    }
+
+    return response.json();
+  },
+
+  complete: async (data: { uploadId: string; metadata: any }) =>
+    api.post("/upload/complete", data),
+
+  getProcessingStatus: async (jobId: string) =>
+    api.get(`/processing/status/${jobId}`),
+
+  publishVideo: async (data: { uploadId: string; metadata: any; publishNow: boolean }) =>
+    api.post("/videos", data),
+};
+
+// Video Processing API
+export const videoProcessingApi = {
+  getStatus: async (jobId: string) => uploadApi.getProcessingStatus(jobId),
+  
+  retryProcessing: async (videoId: string) =>
+    api.post(`/videos/${videoId}/retry-processing`, {}),
+};

@@ -57,18 +57,21 @@ export default {
   			md: 'calc(var(--radius) - 2px)',
   			sm: 'calc(var(--radius) - 4px)'
   		},
-  		animation: {
-  			'fade-in': 'fadeIn 0.4s ease-out',
-  			'fade-in-up': 'fadeInUp 0.4s ease-out',
-  			'fade-in-down': 'fadeInDown 0.4s ease-out',
-  			'slide-in-left': 'slideInLeft 0.3s ease-out',
-  			'slide-in-right': 'slideInRight 0.3s ease-out',
-  			'scale-in': 'scaleIn 0.2s ease-out',
-  			'bounce-in': 'bounceIn 0.6s ease-out',
-  			shimmer: 'shimmer 1.2s ease-in-out infinite',
-  			'accordion-down': 'accordion-down 0.2s ease-out',
-  			'accordion-up': 'accordion-up 0.2s ease-out'
-  		},
+		animation: {
+			'fade-in': 'fadeIn 0.4s ease-out',
+			'fade-in-up': 'fadeInUp 0.4s ease-out',
+			'fade-in-down': 'fadeInDown 0.4s ease-out',
+			'slide-in-left': 'slideInLeft 0.3s ease-out',
+			'slide-in-right': 'slideInRight 0.3s ease-out',
+			'scale-in': 'scaleIn 0.2s ease-out',
+			'bounce-in': 'bounceIn 0.6s ease-out',
+			shimmer: 'shimmer 1.2s ease-in-out infinite',
+			'accordion-down': 'accordion-down 0.2s ease-out',
+			'accordion-up': 'accordion-up 0.2s ease-out',
+			'upload-pulse': 'uploadPulse 2s ease-in-out infinite',
+			'progress-fill': 'progressFill 0.3s ease-out',
+			'drag-over': 'dragOver 0.2s ease-out'
+		},
   		keyframes: {
   			fadeIn: {
   				'0%': {
@@ -161,14 +164,42 @@ export default {
   					height: 'var(--radix-accordion-content-height)'
   				}
   			},
-  			'accordion-up': {
-  				from: {
-  					height: 'var(--radix-accordion-content-height)'
-  				},
-  				to: {
-  					height: '0'
-  				}
-  			}
+			'accordion-up': {
+				from: {
+					height: 'var(--radix-accordion-content-height)'
+				},
+				to: {
+					height: '0'
+				}
+			},
+			uploadPulse: {
+				'0%, 100%': {
+					opacity: '1',
+					transform: 'scale(1)'
+				},
+				'50%': {
+					opacity: '0.7',
+					transform: 'scale(1.05)'
+				}
+			},
+			progressFill: {
+				'0%': {
+					width: '0%'
+				},
+				'100%': {
+					width: 'var(--progress-width)'
+				}
+			},
+			dragOver: {
+				'0%': {
+					transform: 'scale(1)',
+					backgroundColor: 'transparent'
+				},
+				'100%': {
+					transform: 'scale(1.02)',
+					backgroundColor: 'hsl(var(--primary) / 0.05)'
+				}
+			}
   		},
   		boxShadow: {
   			card: '0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06)',

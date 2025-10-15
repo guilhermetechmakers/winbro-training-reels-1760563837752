@@ -213,12 +213,69 @@ export interface ApiError {
 }
 
 // Upload Types
+export interface UploadFile {
+  file: File;
+  id: string;
+  progress: number;
+  status: 'uploading' | 'processing' | 'complete' | 'error';
+  uploadUrl?: string;
+  processingJobId?: string;
+  error?: string;
+}
+
+export interface VideoMetadata {
+  title: string;
+  machineModel: string;
+  process: string;
+  tooling: string[];
+  step: string;
+  tags: string[];
+  isCustomerSpecific: boolean;
+  thumbnailUrl?: string;
+}
+
+export interface AIProcessingResult {
+  transcript: {
+    text: string;
+    segments: { start: number; end: number; text: string; }[];
+  };
+  suggestedTags: { tag: string; confidence: number; }[];
+  thumbnails: string[];
+}
+
 export interface UploadProgress {
   file_id: string;
   filename: string;
   progress: number; // 0-100
   status: "uploading" | "processing" | "completed" | "error";
   error?: string;
+}
+
+export interface UploadInitiateResponse {
+  uploadId: string;
+  uploadUrl: string;
+  resumeUrl?: string;
+}
+
+export interface UploadChunkResponse {
+  chunkId: string;
+  nextChunkOffset: number;
+}
+
+export interface UploadCompleteResponse {
+  videoId: string;
+  processingJobId: string;
+}
+
+export interface ProcessingStatusResponse {
+  status: string;
+  progress: number;
+  result?: AIProcessingResult;
+}
+
+export interface VideoPublishResponse {
+  videoId: string;
+  status: 'published' | 'pending_review';
 }
 
 // Notification Types
