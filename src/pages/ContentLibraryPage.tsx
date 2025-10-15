@@ -1,10 +1,11 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { SkeletonVideoCard } from "@/components/ui/skeleton";
 import { 
   Search, 
   Filter, 
@@ -39,6 +40,15 @@ export function ContentLibraryPage() {
   const [privacyFilter, setPrivacyFilter] = useState<string>('all');
   const [showFilters, setShowFilters] = useState(false);
   const [showProcessingJobs, setShowProcessingJobs] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Simulate loading
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setIsLoading(false);
+    }, 2000);
+    return () => clearTimeout(timer);
+  }, []);
 
   // Get processing jobs
   const { jobs: processingJobs } = useVideoProcessingJobs({
@@ -359,19 +369,19 @@ export function ContentLibraryPage() {
     <MainLayout>
       <div className="p-6 space-y-6">
         {/* Header */}
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-bold">Content Library</h1>
-            <p className="text-muted-foreground mt-1">
+            <h1 className="text-2xl lg:text-3xl font-bold">Content Library</h1>
+            <p className="text-muted-foreground mt-1 text-sm lg:text-base">
               Manage and organize your training videos
             </p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
             {processingJobs.length > 0 && (
               <Button
                 variant="outline"
                 onClick={() => setShowProcessingJobs(!showProcessingJobs)}
-                className="relative"
+                className="relative w-full sm:w-auto"
               >
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                 Processing ({processingJobs.length})
@@ -383,7 +393,7 @@ export function ContentLibraryPage() {
                 </Badge>
               </Button>
             )}
-            <Button>
+            <Button className="w-full sm:w-auto">
               <Upload className="h-4 w-4 mr-2" />
               Upload Video
             </Button>
@@ -395,7 +405,7 @@ export function ContentLibraryPage() {
           <CardContent className="p-6">
             <div className="space-y-4">
               {/* Search Bar */}
-              <div className="flex items-center gap-4">
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4">
                 <div className="relative flex-1">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
                   <Input
@@ -403,31 +413,40 @@ export function ContentLibraryPage() {
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     className="pl-10"
+                    aria-label="Search videos, descriptions, or tags"
                   />
                 </div>
-                <Button
-                  variant="outline"
-                  onClick={() => setShowFilters(!showFilters)}
-                  className={cn(showFilters && "bg-muted")}
-                >
-                  <Filter className="h-4 w-4 mr-2" />
-                  Filters
-                </Button>
                 <div className="flex items-center gap-2">
                   <Button
-                    variant={viewMode === 'grid' ? 'default' : 'outline'}
-                    size="icon"
-                    onClick={() => setViewMode('grid')}
+                    variant="outline"
+                    onClick={() => setShowFilters(!showFilters)}
+                    className={cn(showFilters && "bg-muted", "flex-1 sm:flex-none")}
+                    aria-label="Toggle filters"
+                    aria-expanded={showFilters}
                   >
-                    <Grid3X3 className="h-4 w-4" />
+                    <Filter className="h-4 w-4 mr-2" />
+                    Filters
                   </Button>
-                  <Button
-                    variant={viewMode === 'list' ? 'default' : 'outline'}
-                    size="icon"
-                    onClick={() => setViewMode('list')}
-                  >
-                    <List className="h-4 w-4" />
-                  </Button>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant={viewMode === 'grid' ? 'default' : 'outline'}
+                      size="icon"
+                      onClick={() => setViewMode('grid')}
+                      aria-label="Switch to grid view"
+                      aria-pressed={viewMode === 'grid'}
+                    >
+                      <Grid3X3 className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant={viewMode === 'list' ? 'default' : 'outline'}
+                      size="icon"
+                      onClick={() => setViewMode('list')}
+                      aria-label="Switch to list view"
+                      aria-pressed={viewMode === 'list'}
+                    >
+                      <List className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
               </div>
 
@@ -554,112 +573,132 @@ export function ContentLibraryPage() {
         </div>
 
         {/* Video Grid/List */}
-        {filteredClips.length === 0 ? (
-          <Card>
-            <CardContent className="p-12 text-center">
-              <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
-                <Search className="h-8 w-8 text-muted-foreground" />
-              </div>
-              <h3 className="text-lg font-semibold mb-2">No videos found</h3>
-              <p className="text-muted-foreground mb-4">
-                Try adjusting your search criteria or filters
-              </p>
-              <Button onClick={() => {
-                setSearchQuery('');
-                setSelectedTags([]);
-                setDurationFilter('all');
-                setPrivacyFilter('all');
-              }}>
-                Clear Filters
-              </Button>
-            </CardContent>
-          </Card>
-        ) : (
+        {isLoading ? (
           <div className={cn(
             "grid gap-6",
             viewMode === 'grid' 
               ? "grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4" 
               : "grid-cols-1"
           )}>
-            {filteredClips.map((clip) => (
-              <Card key={clip.id} className="group hover:shadow-lg transition-all duration-200 overflow-hidden">
+            {Array.from({ length: 8 }).map((_, index) => (
+              <SkeletonVideoCard key={index} />
+            ))}
+          </div>
+        ) : filteredClips.length === 0 ? (
+          <Card className="animate-fade-in-up">
+            <CardContent className="p-12 text-center">
+              <div className="w-20 h-20 bg-gradient-to-br from-muted/50 to-muted/30 rounded-full flex items-center justify-center mx-auto mb-6">
+                <Search className="h-10 w-10 text-muted-foreground" />
+              </div>
+              <h3 className="text-xl font-semibold mb-3 bg-gradient-to-r from-foreground to-foreground/80 bg-clip-text text-transparent">
+                No videos found
+              </h3>
+              <p className="text-muted-foreground mb-6 text-base">
+                Try adjusting your search criteria or filters
+              </p>
+              <Button 
+                onClick={() => {
+                  setSearchQuery('');
+                  setSelectedTags([]);
+                  setDurationFilter('all');
+                  setPrivacyFilter('all');
+                }}
+                className="px-6 py-3"
+              >
+                Clear Filters
+              </Button>
+            </CardContent>
+          </Card>
+        ) : (
+          <div className={cn(
+            "grid gap-6 animate-fade-in-up",
+            viewMode === 'grid' 
+              ? "grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4" 
+              : "grid-cols-1"
+          )}>
+            {filteredClips.map((clip, index) => (
+              <Card 
+                key={clip.id} 
+                className="group hover:shadow-2xl hover:-translate-y-2 transition-all duration-500 overflow-hidden border-0 bg-gradient-to-br from-card to-card/80 backdrop-blur-sm"
+                style={{ animationDelay: `${index * 50}ms` }}
+              >
                 {viewMode === 'grid' ? (
                   // Grid View
                   <>
-                    <div className="relative aspect-video bg-muted">
+                    <div className="relative aspect-video bg-gradient-to-br from-muted/50 to-muted/30 overflow-hidden">
                       <img
                         src={clip.thumbnail_url}
                         alt={clip.title}
-                        className="w-full h-full object-cover"
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                       />
-                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors duration-200 flex items-center justify-center">
+                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-all duration-300 flex items-center justify-center">
                         <Button
                           size="icon"
-                          className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-white/90 hover:bg-white text-black"
+                          className="opacity-0 group-hover:opacity-100 transition-all duration-300 bg-white/95 hover:bg-white text-black shadow-lg hover:shadow-xl transform hover:scale-110"
                         >
-                          <Play className="h-4 w-4" />
+                          <Play className="h-5 w-5" />
                         </Button>
                       </div>
-                      <div className="absolute top-2 right-2">
+                      <div className="absolute top-3 right-3">
                         {clip.status === 'processing' ? (
-                          <Badge variant="secondary" className="text-xs bg-blue-500 text-white">
+                          <Badge variant="secondary" className="text-xs bg-blue-500 text-white shadow-lg">
                             <Loader2 className="h-3 w-3 mr-1 animate-spin" />
                             Processing
                           </Badge>
                         ) : (
-                          <Badge variant="secondary" className="text-xs">
+                          <Badge variant="secondary" className="text-xs shadow-lg">
                             {formatDuration(clip.duration)}
                           </Badge>
                         )}
                       </div>
-                      <div className="absolute top-2 left-2">
+                      <div className="absolute top-3 left-3">
                         <Badge 
                           variant={clip.privacy_level === 'public' ? 'default' : 'secondary'}
-                          className="text-xs"
+                          className="text-xs shadow-lg"
                         >
                           {clip.privacy_level}
                         </Badge>
                       </div>
-                      <div className="absolute bottom-2 left-2">
+                      <div className="absolute bottom-3 left-3">
                         <Badge 
                           variant="secondary" 
-                          className={`text-xs ${getStatusColor(clip.status)} text-white`}
+                          className={`text-xs ${getStatusColor(clip.status)} text-white shadow-lg`}
                         >
                           {getStatusIcon(clip.status)}
                           <span className="ml-1 capitalize">{clip.status}</span>
                         </Badge>
                       </div>
                     </div>
-                    <CardContent className="p-4">
-                      <div className="space-y-2">
-                        <h3 className="font-semibold line-clamp-2 group-hover:text-primary transition-colors">
+                    <CardContent className="p-5">
+                      <div className="space-y-3">
+                        <h3 className="font-semibold line-clamp-2 group-hover:text-primary transition-colors duration-300 text-base">
                           {clip.title}
                         </h3>
-                        <p className="text-sm text-muted-foreground line-clamp-2">
+                        <p className="text-sm text-muted-foreground line-clamp-2 group-hover:text-foreground/80 transition-colors duration-300">
                           {clip.description}
                         </p>
                         <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                          <div className="flex items-center gap-1">
+                          <div className="flex items-center gap-1 group-hover:text-primary transition-colors duration-300">
                             <Eye className="h-3 w-3" />
                             {clip.view_count}
                           </div>
-                          <div className="flex items-center gap-1">
+                          <div className="flex items-center gap-1 group-hover:text-primary transition-colors duration-300">
                             <Heart className="h-3 w-3" />
                             {clip.like_count}
                           </div>
-                          <div className="flex items-center gap-1">
+                          <div className="flex items-center gap-1 group-hover:text-primary transition-colors duration-300">
                             <Calendar className="h-3 w-3" />
                             {formatDate(clip.created_at)}
                           </div>
                         </div>
                         <div className="flex flex-wrap gap-1">
                           {clip.tags.slice(0, 3).map(tag => (
-                            <Badge key={tag} variant="outline" className="text-xs">
+                            <Badge key={tag} variant="outline" className="text-xs group-hover:bg-primary/10 group-hover:border-primary/50 transition-colors duration-300">
                               {tag}
                             </Badge>
                           ))}
                           {clip.tags.length > 3 && (
-                            <Badge variant="outline" className="text-xs">
+                            <Badge variant="outline" className="text-xs group-hover:bg-primary/10 group-hover:border-primary/50 transition-colors duration-300">
                               +{clip.tags.length - 3}
                             </Badge>
                           )}
@@ -669,38 +708,38 @@ export function ContentLibraryPage() {
                   </>
                 ) : (
                   // List View
-                  <CardContent className="p-4">
+                  <CardContent className="p-5">
                     <div className="flex items-center gap-4">
-                      <div className="relative w-32 h-20 bg-muted rounded-lg flex-shrink-0">
+                      <div className="relative w-36 h-24 bg-gradient-to-br from-muted/50 to-muted/30 rounded-xl flex-shrink-0 overflow-hidden">
                         <img
                           src={clip.thumbnail_url}
                           alt={clip.title}
-                          className="w-full h-full object-cover rounded-lg"
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                         />
-                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors duration-200 flex items-center justify-center rounded-lg">
+                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-all duration-300 flex items-center justify-center rounded-xl">
                           <Button
                             size="icon"
-                            className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-white/90 hover:bg-white text-black h-8 w-8"
+                            className="opacity-0 group-hover:opacity-100 transition-all duration-300 bg-white/95 hover:bg-white text-black h-8 w-8 shadow-lg hover:shadow-xl transform hover:scale-110"
                           >
-                            <Play className="h-3 w-3" />
+                            <Play className="h-4 w-4" />
                           </Button>
                         </div>
-                        <div className="absolute bottom-1 right-1">
+                        <div className="absolute bottom-2 right-2">
                           {clip.status === 'processing' ? (
-                            <Badge variant="secondary" className="text-xs bg-blue-500 text-white">
+                            <Badge variant="secondary" className="text-xs bg-blue-500 text-white shadow-lg">
                               <Loader2 className="h-3 w-3 mr-1 animate-spin" />
                               Processing
                             </Badge>
                           ) : (
-                            <Badge variant="secondary" className="text-xs">
+                            <Badge variant="secondary" className="text-xs shadow-lg">
                               {formatDuration(clip.duration)}
                             </Badge>
                           )}
                         </div>
-                        <div className="absolute bottom-1 left-1">
+                        <div className="absolute bottom-2 left-2">
                           <Badge 
                             variant="secondary" 
-                            className={`text-xs ${getStatusColor(clip.status)} text-white`}
+                            className={`text-xs ${getStatusColor(clip.status)} text-white shadow-lg`}
                           >
                             {getStatusIcon(clip.status)}
                             <span className="ml-1 capitalize">{clip.status}</span>
@@ -711,33 +750,33 @@ export function ContentLibraryPage() {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-start justify-between">
                           <div className="flex-1 min-w-0">
-                            <h3 className="font-semibold group-hover:text-primary transition-colors line-clamp-1">
+                            <h3 className="font-semibold group-hover:text-primary transition-colors duration-300 line-clamp-1 text-base">
                               {clip.title}
                             </h3>
-                            <p className="text-sm text-muted-foreground line-clamp-2 mt-1">
+                            <p className="text-sm text-muted-foreground line-clamp-2 mt-1 group-hover:text-foreground/80 transition-colors duration-300">
                               {clip.description}
                             </p>
-                            <div className="flex items-center gap-4 text-xs text-muted-foreground mt-2">
-                              <div className="flex items-center gap-1">
+                            <div className="flex items-center gap-4 text-xs text-muted-foreground mt-3">
+                              <div className="flex items-center gap-1 group-hover:text-primary transition-colors duration-300">
                                 <Eye className="h-3 w-3" />
                                 {clip.view_count} views
                               </div>
-                              <div className="flex items-center gap-1">
+                              <div className="flex items-center gap-1 group-hover:text-primary transition-colors duration-300">
                                 <Heart className="h-3 w-3" />
                                 {clip.like_count} likes
                               </div>
-                              <div className="flex items-center gap-1">
+                              <div className="flex items-center gap-1 group-hover:text-primary transition-colors duration-300">
                                 <Calendar className="h-3 w-3" />
                                 {formatDate(clip.created_at)}
                               </div>
-                              <div className="flex items-center gap-1">
+                              <div className="flex items-center gap-1 group-hover:text-primary transition-colors duration-300">
                                 <User className="h-3 w-3" />
                                 {clip.uploaded_by}
                               </div>
                             </div>
-                            <div className="flex flex-wrap gap-1 mt-2">
+                            <div className="flex flex-wrap gap-1 mt-3">
                               {clip.tags.map(tag => (
-                                <Badge key={tag} variant="outline" className="text-xs">
+                                <Badge key={tag} variant="outline" className="text-xs group-hover:bg-primary/10 group-hover:border-primary/50 transition-colors duration-300">
                                   {tag}
                                 </Badge>
                               ))}
@@ -747,11 +786,15 @@ export function ContentLibraryPage() {
                           <div className="flex items-center gap-2 ml-4">
                             <Badge 
                               variant={clip.privacy_level === 'public' ? 'default' : 'secondary'}
-                              className="text-xs"
+                              className="text-xs shadow-lg"
                             >
                               {clip.privacy_level}
                             </Badge>
-                            <Button variant="ghost" size="icon" className="h-8 w-8">
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              className="h-8 w-8 hover:bg-primary/10 hover:text-primary transition-all duration-200"
+                            >
                               <MoreVertical className="h-4 w-4" />
                             </Button>
                           </div>

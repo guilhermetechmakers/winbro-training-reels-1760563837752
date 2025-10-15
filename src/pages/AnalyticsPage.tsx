@@ -182,62 +182,94 @@ export function AnalyticsPage() {
 
         {/* Overview Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Clips</CardTitle>
-              <Play className="h-4 w-4 text-muted-foreground" />
+          <Card className="group hover:shadow-xl hover:-translate-y-1 transition-all duration-300 border-0 bg-gradient-to-br from-card to-card/80 backdrop-blur-sm">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+              <CardTitle className="text-sm font-medium text-muted-foreground group-hover:text-foreground transition-colors duration-200">
+                Total Clips
+              </CardTitle>
+              <div className="p-2 rounded-lg bg-gradient-to-br from-primary/10 to-primary/5 group-hover:scale-110 transition-transform duration-200">
+                <Play className="h-5 w-5 text-primary" />
+              </div>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{formatNumber(mockData.overview.totalClips)}</div>
-              <div className="flex items-center text-xs text-muted-foreground">
-                <TrendingUp className="h-3 w-3 mr-1 text-green-600" />
-                <span className="text-green-600">+{mockData.overview.clipsThisMonth}</span>
-                <span className="ml-1">this month</span>
+              <div className="text-3xl font-bold mb-2 bg-gradient-to-r from-foreground to-foreground/80 bg-clip-text text-transparent">
+                {formatNumber(mockData.overview.totalClips)}
+              </div>
+              <div className="flex items-center text-sm">
+                <span className="text-green-600 font-semibold flex items-center">
+                  <TrendingUp className="h-3 w-3 mr-1" />
+                  +{mockData.overview.clipsThisMonth}
+                </span>
+                <span className="text-muted-foreground ml-2">this month</span>
               </div>
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Views</CardTitle>
-              <Eye className="h-4 w-4 text-muted-foreground" />
+          <Card className="group hover:shadow-xl hover:-translate-y-1 transition-all duration-300 border-0 bg-gradient-to-br from-card to-card/80 backdrop-blur-sm">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+              <CardTitle className="text-sm font-medium text-muted-foreground group-hover:text-foreground transition-colors duration-200">
+                Total Views
+              </CardTitle>
+              <div className="p-2 rounded-lg bg-gradient-to-br from-primary/10 to-primary/5 group-hover:scale-110 transition-transform duration-200">
+                <Eye className="h-5 w-5 text-primary" />
+              </div>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{formatNumber(mockData.overview.totalViews)}</div>
-              <div className="flex items-center text-xs text-muted-foreground">
-                <TrendingUp className="h-3 w-3 mr-1 text-green-600" />
-                <span className="text-green-600">+{formatNumber(mockData.overview.viewsThisMonth)}</span>
-                <span className="ml-1">this month</span>
+              <div className="text-3xl font-bold mb-2 bg-gradient-to-r from-foreground to-foreground/80 bg-clip-text text-transparent">
+                {formatNumber(mockData.overview.totalViews)}
+              </div>
+              <div className="flex items-center text-sm">
+                <span className="text-green-600 font-semibold flex items-center">
+                  <TrendingUp className="h-3 w-3 mr-1" />
+                  +{formatNumber(mockData.overview.viewsThisMonth)}
+                </span>
+                <span className="text-muted-foreground ml-2">this month</span>
               </div>
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Active Users</CardTitle>
-              <Users className="h-4 w-4 text-muted-foreground" />
+          <Card className="group hover:shadow-xl hover:-translate-y-1 transition-all duration-300 border-0 bg-gradient-to-br from-card to-card/80 backdrop-blur-sm">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+              <CardTitle className="text-sm font-medium text-muted-foreground group-hover:text-foreground transition-colors duration-200">
+                Active Users
+              </CardTitle>
+              <div className="p-2 rounded-lg bg-gradient-to-br from-primary/10 to-primary/5 group-hover:scale-110 transition-transform duration-200">
+                <Users className="h-5 w-5 text-primary" />
+              </div>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{formatNumber(mockData.overview.totalUsers)}</div>
-              <div className="flex items-center text-xs text-muted-foreground">
-                <TrendingUp className="h-3 w-3 mr-1 text-green-600" />
-                <span className="text-green-600">+{mockData.overview.usersThisMonth}</span>
-                <span className="ml-1">this month</span>
+              <div className="text-3xl font-bold mb-2 bg-gradient-to-r from-foreground to-foreground/80 bg-clip-text text-transparent">
+                {formatNumber(mockData.overview.totalUsers)}
+              </div>
+              <div className="flex items-center text-sm">
+                <span className="text-green-600 font-semibold flex items-center">
+                  <TrendingUp className="h-3 w-3 mr-1" />
+                  +{mockData.overview.usersThisMonth}
+                </span>
+                <span className="text-muted-foreground ml-2">this month</span>
               </div>
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Completion Rate</CardTitle>
-              <BarChart3 className="h-4 w-4 text-muted-foreground" />
+          <Card className="group hover:shadow-xl hover:-translate-y-1 transition-all duration-300 border-0 bg-gradient-to-br from-card to-card/80 backdrop-blur-sm">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+              <CardTitle className="text-sm font-medium text-muted-foreground group-hover:text-foreground transition-colors duration-200">
+                Completion Rate
+              </CardTitle>
+              <div className="p-2 rounded-lg bg-gradient-to-br from-primary/10 to-primary/5 group-hover:scale-110 transition-transform duration-200">
+                <BarChart3 className="h-5 w-5 text-primary" />
+              </div>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{formatPercentage(mockData.overview.completionRate)}</div>
-              <div className="flex items-center text-xs text-muted-foreground">
-                <TrendingUp className="h-3 w-3 mr-1 text-green-600" />
-                <span className="text-green-600">+5.2%</span>
-                <span className="ml-1">vs last month</span>
+              <div className="text-3xl font-bold mb-2 bg-gradient-to-r from-foreground to-foreground/80 bg-clip-text text-transparent">
+                {formatPercentage(mockData.overview.completionRate)}
+              </div>
+              <div className="flex items-center text-sm">
+                <span className="text-green-600 font-semibold flex items-center">
+                  <TrendingUp className="h-3 w-3 mr-1" />
+                  +5.2%
+                </span>
+                <span className="text-muted-foreground ml-2">vs last month</span>
               </div>
             </CardContent>
           </Card>
