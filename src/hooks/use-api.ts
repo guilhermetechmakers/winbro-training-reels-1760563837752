@@ -349,6 +349,68 @@ export const useResendVerification = () => {
   });
 };
 
+// Password Reset Hooks
+export const usePasswordResetRequest = () => {
+  return useMutation({
+    mutationFn: authApi.requestPasswordReset,
+    onSuccess: () => {
+      toast.success("Password reset email sent!", {
+        description: "Check your email for instructions to reset your password.",
+      });
+    },
+    onError: (error: any) => {
+      const message = error.response?.data?.message || error.message || "Failed to send reset email";
+      toast.error("Error", {
+        description: message,
+      });
+    },
+  });
+};
+
+export const useTokenValidation = (token: string) => {
+  return useQuery({
+    queryKey: ["validate-reset-token", token],
+    queryFn: () => authApi.validateResetToken(token),
+    enabled: !!token,
+    retry: false,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+  });
+};
+
+export const usePasswordResetWithToken = () => {
+  return useMutation({
+    mutationFn: authApi.resetPasswordWithToken,
+    onSuccess: () => {
+      toast.success("Password reset successful!", {
+        description: "Your password has been updated. You can now sign in with your new password.",
+      });
+    },
+    onError: (error: any) => {
+      const message = error.response?.data?.message || error.message || "Failed to reset password";
+      toast.error("Error", {
+        description: message,
+      });
+    },
+  });
+};
+
+export const useResendPasswordReset = () => {
+  return useMutation({
+    mutationFn: authApi.requestPasswordReset,
+    onSuccess: () => {
+      toast.success("Reset email sent again!", {
+        description: "A new password reset email has been sent to your inbox.",
+      });
+    },
+    onError: (error: any) => {
+      const message = error.response?.data?.message || error.message || "Failed to resend reset email";
+      toast.error("Error", {
+        description: message,
+      });
+    },
+  });
+};
+
 // Analytics Hooks
 export const useAnalyticsOverview = () => {
   return useQuery({

@@ -456,6 +456,52 @@ export interface PasswordUpdateForm {
   confirm_password: string;
 }
 
+// Password Reset API Types
+export interface PasswordResetRequest {
+  email: string;
+}
+
+export interface PasswordResetResponse {
+  message: string;
+  rateLimitInfo?: {
+    remaining: number;
+    resetTime: number;
+  };
+}
+
+export interface PasswordReset {
+  token: string;
+  newPassword: string;
+  confirmPassword: string;
+}
+
+export interface PasswordResetConfirmation {
+  success: boolean;
+  message: string;
+}
+
+export interface TokenValidation {
+  valid: boolean;
+  expired: boolean;
+  email?: string;
+}
+
+export interface TokenValidation {
+  valid: boolean;
+  expired: boolean;
+  email?: string;
+}
+
+// Password Reset Token Database Type
+export interface PasswordResetToken {
+  id: string;
+  user_id: string;
+  token: string;
+  expires_at: string;
+  used_at?: string;
+  created_at: string;
+}
+
 export interface EmailVerificationForm {
   token: string;
 }

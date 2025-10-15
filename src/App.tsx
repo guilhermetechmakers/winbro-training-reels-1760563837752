@@ -6,6 +6,7 @@ import { LoginPage } from "@/pages/LoginPage";
 import { SignupPage } from "@/pages/SignupPage";
 import { EmailVerificationPage } from "@/pages/EmailVerificationPage";
 import { PasswordResetPage } from "@/pages/PasswordResetPage";
+import { PasswordResetRequestPage } from "@/pages/PasswordResetRequestPage";
 import { DashboardPage } from "@/pages/DashboardPage";
 import { ContentLibraryPage } from "@/pages/ContentLibraryPage";
 import { UploadPage } from "@/pages/UploadPage";
@@ -44,7 +45,8 @@ export default function App() {
             <Route path="/login" element={<LoginPage />} />
             <Route path="/signup" element={<SignupPage />} />
             <Route path="/verify-email/:token" element={<EmailVerificationPage />} />
-            <Route path="/reset-password" element={<PasswordResetPage />} />
+            <Route path="/reset-password-request" element={<PasswordResetRequestPage />} />
+            <Route path="/reset-password/:token" element={<PasswordResetPage />} />
             
             {/* Protected Routes */}
             <Route path="/dashboard" element={

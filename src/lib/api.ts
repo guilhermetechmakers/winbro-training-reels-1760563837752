@@ -225,6 +225,15 @@ export const authApi = {
   resetPassword: async (token: string, password: string) => 
     api.post("/auth/reset-password", { token, password }),
 
+  requestPasswordReset: async (email: string) => 
+    api.post("/auth/request-password-reset", { email }),
+
+  resetPasswordWithToken: async (data: { token: string; newPassword: string; confirmPassword: string }) => 
+    api.post("/auth/reset-password", data),
+
+  validateResetToken: async (token: string) => 
+    api.get(`/auth/validate-reset-token/${token}`),
+
   verifyEmail: async (token: string) => 
     api.post("/auth/verify-email", { token }),
 
