@@ -43,7 +43,7 @@ export interface VideoClip {
   tags: string[];
   machine_model?: string;
   process?: string;
-  tooling?: string;
+  tooling?: string[];
   step?: string;
   privacy_level: "public" | "organization" | "private";
   organization_id: string;
@@ -62,7 +62,7 @@ export interface CreateVideoClipInput {
   file: File;
   machine_model?: string;
   process?: string;
-  tooling?: string;
+  tooling?: string[];
   step?: string;
   tags: string[];
   privacy_level: "public" | "organization" | "private";
@@ -75,7 +75,7 @@ export interface UpdateVideoClipInput {
   tags?: string[];
   machine_model?: string;
   process?: string;
-  tooling?: string;
+  tooling?: string[];
   step?: string;
   privacy_level?: "public" | "organization" | "private";
   status?: "draft" | "processing" | "ready" | "published" | "archived";
