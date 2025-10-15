@@ -460,6 +460,26 @@ export interface EmailVerificationForm {
   token: string;
 }
 
+// Email Verification Types
+export interface VerifyEmailRequest {
+  token: string;
+}
+
+export interface VerifyEmailResponse {
+  success: boolean;
+  message: string;
+  userId?: string;
+}
+
+export interface ResendVerificationRequest {
+  email?: string;
+}
+
+export interface ResendVerificationResponse {
+  success: boolean;
+  message: string;
+}
+
 // Navigation Types
 export interface NavItem {
   title: string;

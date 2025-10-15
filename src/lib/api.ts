@@ -194,6 +194,10 @@ export const usersApi = {
 
 // Auth API
 export const authApi = {
+  getCurrentUser: async () => {
+    return api.get("/auth/me");
+  },
+
   login: async (credentials: any) => {
     const response = await api.post("/auth/login", credentials) as any;
     if (response.token) {
@@ -224,7 +228,8 @@ export const authApi = {
   verifyEmail: async (token: string) => 
     api.post("/auth/verify-email", { token }),
 
-  resendVerification: async () => api.post("/auth/resend-verification", {}),
+  resendVerification: async (email?: string) => 
+    api.post("/auth/resend-verification", email ? { email } : {}),
 };
 
 // Analytics API
