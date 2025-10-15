@@ -95,6 +95,7 @@ export interface Course {
   estimated_duration: number; // in minutes
   enrolled_count: number;
   completion_rate: number;
+  passing_score: number; // percentage required to pass
   created_at: string;
   updated_at: string;
   published_at?: string;
@@ -102,51 +103,179 @@ export interface Course {
 
 export interface CourseModule {
   id: string;
+  course_id: string;
   title: string;
   description?: string;
-  order: number;
+  sort_order: number;
   lessons: CourseLesson[];
+  quizzes: CourseQuiz[];
+  created_at: string;
 }
 
 export interface CourseLesson {
   id: string;
+  module_id: string;
+  video_id: string;
+  video_clip?: VideoClip;
   title: string;
   description?: string;
-  video_clip_id: string;
-  video_clip?: VideoClip;
-  order: number;
+  sort_order: number;
+  is_required: boolean;
   duration: number; // in seconds
-  quiz?: Quiz;
+  created_at: string;
 }
 
-export interface Quiz {
+export interface CourseQuiz {
   id: string;
+  course_id: string;
+  module_id?: string;
   title: string;
-  questions: QuizQuestion[];
-  pass_score: number; // percentage
+  description?: string;
   time_limit?: number; // in minutes
+  sort_order: number;
+  questions: QuizQuestion[];
+  created_at: string;
 }
 
 export interface QuizQuestion {
   id: string;
-  question: string;
-  type: "multiple_choice" | "true_false" | "text";
-  options?: string[];
-  correct_answer: string | number;
+  quiz_id: string;
+  question_text: string;
+  question_type: "multiple_choice" | "true_false" | "short_answer";
+  correct_answer: string;
+  answer_options?: string[]; // For multiple choice
+  points: number;
+  sort_order: number;
   explanation?: string;
-  order: number;
+}
+
+// Course Enrollment Types
+export interface CourseEnrollment {
+  id: string;
+  course_id: string;
+  user_id: string;
+  enrolled_at: string;
+  started_at?: string;
+  completed_at?: string;
+  current_lesson_id?: string;
+  progress_percentage: number;
+  final_score?: number;
+  certificate_issued_at?: string;
+  course?: Course;
+  user?: User;
+}
+
+export interface QuizAttempt {
+  id: string;
+  quiz_id: string;
+  user_id: string;
+  enrollment_id: string;
+  started_at: string;
+  completed_at?: string;
+  score?: number;
+  passed?: boolean;
+  answers: Record<string, string>; // question_id -> answer
 }
 
 // Certificate Types
 export interface Certificate {
   id: string;
+  enrollment_id: string;
   user_id: string;
   course_id: string;
+  certificate_number: string;
+  issued_at: string;
+  pdf_url: string;
+  verification_code: string;
   course?: Course;
   user?: User;
-  issued_at: string;
-  verification_code: string;
-  pdf_url: string;
+}
+
+export interface CertificateVerification {
+  valid: boolean;
+  certificate?: Certificate;
+  error?: string;
+  revoked?: boolean;
+  revoked_reason?: string;
+}
+
+// Course Builder Types
+export interface CourseBuilderState {
+  course: Partial<Course>;
+  selectedModule: string | null;
+  selectedLesson: string | null;
+  selectedQuiz: string | null;
+  isPreviewMode: boolean;
+  isDirty: boolean;
+}
+
+export interface CourseBuilderAction {
+  type: 'SET_COURSE' | 'UPDATE_COURSE' | 'ADD_MODULE' | 'UPDATE_MODULE' | 'DELETE_MODULE' | 
+        'ADD_LESSON' | 'UPDATE_LESSON' | 'DELETE_LESSON' | 'REORDER_LESSONS' |
+        'ADD_QUIZ' | 'UPDATE_QUIZ' | 'DELETE_QUIZ' | 'ADD_QUESTION' | 'UPDATE_QUESTION' | 'DELETE_QUESTION' |
+        'SET_SELECTED' | 'SET_PREVIEW_MODE' | 'SET_DIRTY' | 'RESET';
+  payload?: any;
+}
+
+// Course Player Types
+export interface CoursePlayerState {
+  course: Course | null;
+  enrollment: CourseEnrollment | null;
+  currentModule: string | null;
+  currentLesson: string | null;
+  progress: number;
+  isPlaying: boolean;
+  currentTime: number;
+  duration: number;
+  completedLessons: string[];
+  quizAttempts: Record<string, QuizAttempt>;
+}
+
+export interface CoursePlayerAction {
+  type: 'SET_COURSE' | 'SET_ENROLLMENT' | 'SET_CURRENT' | 'UPDATE_PROGRESS' | 
+        'SET_PLAYING' | 'SET_TIME' | 'COMPLETE_LESSON' | 'SET_QUIZ_ATTEMPT' | 'RESET';
+  payload?: any;
+}
+
+// Course Assignment Types
+export interface CourseAssignment {
+  id: string;
+  course_id: string;
+  assigned_by: string;
+  assigned_to: string; // user_id, team_id, or 'all'
+  assignment_type: 'user' | 'team' | 'organization';
+  due_date?: string;
+  start_date?: string;
+  created_at: string;
+  course?: Course;
+}
+
+// Course Analytics Types
+export interface CourseAnalytics {
+  course_id: string;
+  total_enrollments: number;
+  completion_rate: number;
+  average_score: number;
+  average_completion_time: number; // in minutes
+  module_completion: ModuleAnalytics[];
+  recent_activity: CourseActivity[];
+}
+
+export interface ModuleAnalytics {
+  module_id: string;
+  title: string;
+  completion_rate: number;
+  average_time: number;
+  quiz_scores: number[];
+}
+
+export interface CourseActivity {
+  id: string;
+  type: 'enrollment' | 'completion' | 'quiz_attempt' | 'certificate_issued';
+  user_id: string;
+  user?: User;
+  description: string;
+  created_at: string;
 }
 
 // Analytics Types

@@ -17,7 +17,8 @@ import {
   X,
   BookOpen,
   FileText,
-  Play
+  Play,
+  Plus,
 } from "lucide-react";
 import { useCurrentUser, useLogout } from "@/hooks/use-api";
 
@@ -53,7 +54,13 @@ export function Sidebar({ className, onMobileMenuClose }: SidebarProps) {
       badge: "New",
     },
     {
-      title: "Courses",
+      title: "Course Builder",
+      href: "/course-builder",
+      icon: Plus,
+      badge: "New",
+    },
+    {
+      title: "My Courses",
       href: "/courses",
       icon: BookOpen,
       badge: null,
