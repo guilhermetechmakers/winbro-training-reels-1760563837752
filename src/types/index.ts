@@ -223,6 +223,70 @@ export interface UploadFile {
   error?: string;
 }
 
+// Video Processing Types
+export interface VideoProcessingStatus {
+  id: string;
+  videoId: string;
+  status: 'uploading' | 'queued' | 'processing' | 'completed' | 'failed';
+  progress: number;
+  message: string;
+  estimatedTimeRemaining?: number;
+  startedAt?: string;
+  completedAt?: string;
+  error?: string;
+  processingStages: ProcessingStage[];
+}
+
+export interface ProcessingStage {
+  name: string;
+  status: 'pending' | 'in_progress' | 'completed' | 'failed';
+  progress: number;
+  message?: string;
+  startedAt?: string;
+  completedAt?: string;
+}
+
+export interface VideoFormat {
+  id: string;
+  videoId: string;
+  format: 'hls' | 'dash' | 'mp4';
+  quality: '360p' | '720p' | '1080p' | '4k';
+  filePath: string;
+  fileSize: number;
+  duration: number;
+  bitrate: number;
+  resolution: {
+    width: number;
+    height: number;
+  };
+  createdAt: string;
+}
+
+export interface VideoThumbnail {
+  id: string;
+  videoId: string;
+  timestamp: number;
+  filePath: string;
+  fileSize: number;
+  width: number;
+  height: number;
+  createdAt: string;
+}
+
+export interface ProcessedVideo {
+  id: string;
+  title: string;
+  description?: string;
+  duration: number;
+  fileSize: number;
+  status: 'processing' | 'completed' | 'failed';
+  formats: VideoFormat[];
+  thumbnails: VideoThumbnail[];
+  processingStatus?: VideoProcessingStatus;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface VideoMetadata {
   title: string;
   machineModel: string;

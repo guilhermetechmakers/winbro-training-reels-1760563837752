@@ -17,9 +17,14 @@ import {
   Upload,
   Tag,
   Calendar,
-  User
+  User,
+  Loader2,
+  AlertCircle,
+  CheckCircle
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { ProcessingStatus } from "@/components/upload/ProcessingStatus";
+import { useVideoProcessingJobs } from "@/hooks/use-video-processing";
 import type { VideoClip } from "@/types";
 
 type ViewMode = 'grid' | 'list';
@@ -33,9 +38,61 @@ export function ContentLibraryPage() {
   const [durationFilter, setDurationFilter] = useState<string>('all');
   const [privacyFilter, setPrivacyFilter] = useState<string>('all');
   const [showFilters, setShowFilters] = useState(false);
+  const [showProcessingJobs, setShowProcessingJobs] = useState(false);
+
+  // Get processing jobs
+  const { jobs: processingJobs } = useVideoProcessingJobs({
+    status: 'processing',
+    limit: 10
+  });
 
   // Mock data - in real app this would come from API
   const mockClips: VideoClip[] = [
+    // Add some processing videos to the mock data
+    {
+      id: 'processing-1',
+      title: 'Advanced Milling Techniques',
+      description: 'Advanced milling techniques for complex parts',
+      duration: 0, // Will be set after processing
+      file_url: '',
+      thumbnail_url: '',
+      transcript: '',
+      tags: ['Milling', 'Advanced', 'Techniques'],
+      machine_model: 'CNC-3000',
+      process: 'Milling',
+      tooling: ['End Mill', 'Ball Mill'],
+      step: 'Advanced Techniques',
+      privacy_level: 'organization',
+      organization_id: 'org-1',
+      uploaded_by: 'user-1',
+      status: 'processing',
+      created_at: '2024-01-16T10:30:00Z',
+      updated_at: '2024-01-16T10:30:00Z',
+      view_count: 0,
+      like_count: 0
+    },
+    {
+      id: 'processing-2',
+      title: 'Safety Equipment Overview',
+      description: 'Comprehensive overview of safety equipment usage',
+      duration: 0,
+      file_url: '',
+      thumbnail_url: '',
+      transcript: '',
+      tags: ['Safety', 'Equipment', 'Overview'],
+      machine_model: 'CNC-2000',
+      process: 'Safety',
+      tooling: ['Safety Glasses', 'Gloves'],
+      step: 'Equipment Check',
+      privacy_level: 'organization',
+      organization_id: 'org-1',
+      uploaded_by: 'user-2',
+      status: 'processing',
+      created_at: '2024-01-16T09:15:00Z',
+      updated_at: '2024-01-16T09:15:00Z',
+      view_count: 0,
+      like_count: 0
+    },
     {
       id: '1',
       title: 'Machine Setup - Part 1',
@@ -272,6 +329,32 @@ export function ContentLibraryPage() {
     });
   };
 
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case 'processing':
+        return <Loader2 className="h-4 w-4 text-blue-500 animate-spin" />;
+      case 'published':
+        return <CheckCircle className="h-4 w-4 text-green-500" />;
+      case 'draft':
+        return <AlertCircle className="h-4 w-4 text-yellow-500" />;
+      default:
+        return <AlertCircle className="h-4 w-4 text-muted-foreground" />;
+    }
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'processing':
+        return 'bg-blue-500';
+      case 'published':
+        return 'bg-green-500';
+      case 'draft':
+        return 'bg-yellow-500';
+      default:
+        return 'bg-gray-500';
+    }
+  };
+
   return (
     <MainLayout>
       <div className="p-6 space-y-6">
@@ -283,10 +366,28 @@ export function ContentLibraryPage() {
               Manage and organize your training videos
             </p>
           </div>
-          <Button>
-            <Upload className="h-4 w-4 mr-2" />
-            Upload Video
-          </Button>
+          <div className="flex items-center gap-2">
+            {processingJobs.length > 0 && (
+              <Button
+                variant="outline"
+                onClick={() => setShowProcessingJobs(!showProcessingJobs)}
+                className="relative"
+              >
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Processing ({processingJobs.length})
+                <Badge 
+                  variant="secondary" 
+                  className="ml-2 bg-blue-500 text-white"
+                >
+                  {processingJobs.length}
+                </Badge>
+              </Button>
+            )}
+            <Button>
+              <Upload className="h-4 w-4 mr-2" />
+              Upload Video
+            </Button>
+          </div>
         </div>
 
         {/* Search and Filters */}
@@ -402,6 +503,35 @@ export function ContentLibraryPage() {
           </CardContent>
         </Card>
 
+        {/* Processing Jobs Panel */}
+        {showProcessingJobs && processingJobs.length > 0 && (
+          <Card>
+            <CardContent className="p-6">
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-lg font-semibold">Processing Videos</h3>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setShowProcessingJobs(false)}
+                  >
+                    Hide
+                  </Button>
+                </div>
+                <div className="space-y-3">
+                  {processingJobs.map((job) => (
+                    <ProcessingStatus
+                      key={job.videoId}
+                      videoId={job.videoId}
+                      compact={true}
+                    />
+                  ))}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Results Count */}
         <div className="flex items-center justify-between">
           <p className="text-sm text-muted-foreground">
@@ -471,9 +601,16 @@ export function ContentLibraryPage() {
                         </Button>
                       </div>
                       <div className="absolute top-2 right-2">
-                        <Badge variant="secondary" className="text-xs">
-                          {formatDuration(clip.duration)}
-                        </Badge>
+                        {clip.status === 'processing' ? (
+                          <Badge variant="secondary" className="text-xs bg-blue-500 text-white">
+                            <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                            Processing
+                          </Badge>
+                        ) : (
+                          <Badge variant="secondary" className="text-xs">
+                            {formatDuration(clip.duration)}
+                          </Badge>
+                        )}
                       </div>
                       <div className="absolute top-2 left-2">
                         <Badge 
@@ -481,6 +618,15 @@ export function ContentLibraryPage() {
                           className="text-xs"
                         >
                           {clip.privacy_level}
+                        </Badge>
+                      </div>
+                      <div className="absolute bottom-2 left-2">
+                        <Badge 
+                          variant="secondary" 
+                          className={`text-xs ${getStatusColor(clip.status)} text-white`}
+                        >
+                          {getStatusIcon(clip.status)}
+                          <span className="ml-1 capitalize">{clip.status}</span>
                         </Badge>
                       </div>
                     </div>
@@ -540,8 +686,24 @@ export function ContentLibraryPage() {
                           </Button>
                         </div>
                         <div className="absolute bottom-1 right-1">
-                          <Badge variant="secondary" className="text-xs">
-                            {formatDuration(clip.duration)}
+                          {clip.status === 'processing' ? (
+                            <Badge variant="secondary" className="text-xs bg-blue-500 text-white">
+                              <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                              Processing
+                            </Badge>
+                          ) : (
+                            <Badge variant="secondary" className="text-xs">
+                              {formatDuration(clip.duration)}
+                            </Badge>
+                          )}
+                        </div>
+                        <div className="absolute bottom-1 left-1">
+                          <Badge 
+                            variant="secondary" 
+                            className={`text-xs ${getStatusColor(clip.status)} text-white`}
+                          >
+                            {getStatusIcon(clip.status)}
+                            <span className="ml-1 capitalize">{clip.status}</span>
                           </Badge>
                         </div>
                       </div>

@@ -10,11 +10,13 @@ import {
   ArrowLeft,
   ArrowRight,
   Eye,
-  Send
+  Send,
+  Loader2
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useUpload } from "@/hooks/use-upload";
 import { UploadWidget } from "@/components/upload/UploadWidget";
+import { ProcessingStatus } from "@/components/upload/ProcessingStatus";
 import { CaptureGuidelines } from "@/components/upload/CaptureGuidelines";
 import { MetadataForm } from "@/components/upload/MetadataForm";
 import { TranscriptEditor } from "@/components/upload/TranscriptEditor";
@@ -26,6 +28,8 @@ type UploadStep = 'upload' | 'metadata' | 'processing' | 'review' | 'complete';
 export function UploadPage() {
   const [currentStep, setCurrentStep] = useState<UploadStep>('upload');
   const [isPaused, setIsPaused] = useState(false);
+  const [uploadedVideoId, setUploadedVideoId] = useState<string | null>(null);
+  const [showProcessingStatus, setShowProcessingStatus] = useState(false);
   
   const {
     uploadState,
@@ -76,6 +80,26 @@ export function UploadPage() {
   const handleFileSelect = async (file: File) => {
     await uploadFile(file);
     setCurrentStep('metadata');
+  };
+
+  const handleUploadComplete = (videoId: string) => {
+    setUploadedVideoId(videoId);
+    setShowProcessingStatus(true);
+    setCurrentStep('processing');
+  };
+
+  const handleUploadError = (error: string) => {
+    console.error('Upload error:', error);
+    // Error handling is already done in the UploadWidget
+  };
+
+  const handleProcessingComplete = () => {
+    setCurrentStep('review');
+  };
+
+  const handleProcessingError = (error: string) => {
+    console.error('Processing error:', error);
+    // Error handling is already done in the ProcessingStatus component
   };
 
   const handleCameraCapture = () => {
@@ -161,6 +185,8 @@ export function UploadPage() {
             <UploadWidget
               onFileSelect={handleFileSelect}
               onCameraCapture={handleCameraCapture}
+              onUploadComplete={handleUploadComplete}
+              onUploadError={handleUploadError}
               uploadProgress={uploadState.currentFile?.progress}
               uploadStatus={uploadState.currentFile?.status}
               error={uploadState.currentFile?.error}
@@ -168,6 +194,7 @@ export function UploadPage() {
               onPause={handlePause}
               onResume={handleResume}
               isPaused={isPaused}
+              metadata={uploadState.metadata}
             />
           </div>
         );
@@ -193,35 +220,32 @@ export function UploadPage() {
         return (
           <div className="space-y-6">
             <div className="text-center space-y-2">
-              <h2 className="text-2xl font-bold">AI Processing</h2>
+              <h2 className="text-2xl font-bold">Video Processing</h2>
               <p className="text-muted-foreground">
-                Our AI is analyzing your video and generating insights
+                Your video is being processed and optimized for streaming
               </p>
             </div>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <TranscriptEditor
-                transcript={uploadState.aiResults?.transcript || { text: "", segments: [] }}
-                onTranscriptChange={(transcript) => {
-                  if (uploadState.aiResults) {
-                    updateAIResults({ ...uploadState.aiResults, transcript });
-                  }
-                }}
-                isProcessing={!uploadState.aiResults}
-                processingProgress={uploadState.currentFile?.progress || 0}
+            {uploadedVideoId && showProcessingStatus ? (
+              <ProcessingStatus
+                videoId={uploadedVideoId}
+                onComplete={handleProcessingComplete}
+                onError={handleProcessingError}
+                showDetails={true}
               />
-              
-              <ThumbnailSelector
-                thumbnails={uploadState.aiResults?.thumbnails || []}
-                selectedThumbnail={uploadState.selectedThumbnail}
-                onThumbnailSelect={selectThumbnail}
-                onCustomUpload={(file) => {
-                  // Handle custom thumbnail upload
-                  console.log("Custom thumbnail upload:", file);
-                }}
-                isProcessing={!uploadState.aiResults}
-              />
-            </div>
+            ) : (
+              <div className="flex items-center justify-center p-8">
+                <div className="text-center space-y-4">
+                  <Loader2 className="h-12 w-12 text-muted-foreground animate-spin mx-auto" />
+                  <div>
+                    <p className="text-lg font-medium">Processing your video...</p>
+                    <p className="text-sm text-muted-foreground">
+                      This may take a few minutes depending on video length
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         );
 

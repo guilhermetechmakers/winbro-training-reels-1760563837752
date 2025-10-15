@@ -1,7 +1,8 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
+import { Badge } from "@/components/ui/badge";
 import { 
   Upload, 
   Camera, 
@@ -9,13 +10,20 @@ import {
   Pause, 
   Play,
   CheckCircle,
-  AlertCircle
+  AlertCircle,
+  RotateCcw,
+  X,
+  Loader2
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useVideoUpload } from "@/hooks/use-video-processing";
+import type { VideoMetadata } from "@/types";
 
 interface UploadWidgetProps {
   onFileSelect: (file: File) => void;
   onCameraCapture: () => void;
+  onUploadComplete?: (videoId: string) => void;
+  onUploadError?: (error: string) => void;
   uploadProgress?: number;
   uploadStatus?: 'idle' | 'uploading' | 'processing' | 'complete' | 'error';
   error?: string;
@@ -23,21 +31,40 @@ interface UploadWidgetProps {
   onPause?: () => void;
   onResume?: () => void;
   isPaused?: boolean;
+  metadata?: VideoMetadata;
+  maxFileSize?: number; // in bytes
+  allowedFormats?: string[];
 }
 
 export function UploadWidget({
   onFileSelect,
   onCameraCapture,
+  onUploadComplete,
+  onUploadError,
   uploadProgress = 0,
   uploadStatus = 'idle',
   error,
   onRetry,
   onPause,
   onResume,
-  isPaused = false
+  isPaused = false,
+  metadata,
+  maxFileSize = 500 * 1024 * 1024, // 500MB default
+  allowedFormats = ['video/mp4', 'video/quicktime', 'video/x-msvideo', 'video/x-matroska', 'video/webm']
 }: UploadWidgetProps) {
   const [isDragActive, setIsDragActive] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const {
+    uploadProgress: hookProgress,
+    uploadStatus: hookStatus,
+    uploadError: hookError,
+    videoId,
+    upload: uploadFile,
+    isUploading: isHookUploading,
+    reset: resetUpload
+  } = useVideoUpload();
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -68,17 +95,80 @@ export function UploadWidget({
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
-      onFileSelect(file);
+      handleFileUpload(file);
     }
   };
 
+  const handleFileUpload = async (file: File) => {
+    // Validate file
+    if (!allowedFormats.includes(file.type)) {
+      onUploadError?.('Unsupported file format. Please select a video file.');
+      return;
+    }
+
+    if (file.size > maxFileSize) {
+      onUploadError?.(`File size must be less than ${formatFileSize(maxFileSize)}`);
+      return;
+    }
+
+    setSelectedFile(file);
+
+    try {
+      if (metadata) {
+        // Use the enhanced upload with processing
+        await uploadFile({ file, metadata });
+      } else {
+        // Use the simple file selection
+        onFileSelect(file);
+      }
+    } catch (error) {
+      console.error('Upload error:', error);
+      onUploadError?.(error instanceof Error ? error.message : 'Upload failed');
+    }
+  };
+
+  const formatFileSize = (bytes: number) => {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  };
+
+
+  // Handle upload completion
+  useEffect(() => {
+    if (videoId && onUploadComplete) {
+      onUploadComplete(videoId);
+    }
+  }, [videoId, onUploadComplete]);
+
+  // Handle upload error
+  useEffect(() => {
+    if (hookError && onUploadError) {
+      onUploadError(hookError);
+    }
+  }, [hookError, onUploadError]);
+
+  // Reset upload state when component unmounts or file changes
+  useEffect(() => {
+    return () => {
+      if (selectedFile) {
+        resetUpload();
+      }
+    };
+  }, [selectedFile, resetUpload]);
+
   const getStatusIcon = () => {
-    switch (uploadStatus) {
+    const currentStatus = metadata ? hookStatus : uploadStatus;
+    switch (currentStatus) {
+      case 'completed':
       case 'complete':
         return <CheckCircle className="h-8 w-8 text-green-500" />;
       case 'error':
         return <AlertCircle className="h-8 w-8 text-red-500" />;
       case 'uploading':
+        return <Loader2 className="h-8 w-8 text-blue-500 animate-spin" />;
       case 'processing':
         return <FileVideo className="h-8 w-8 text-blue-500 animate-pulse" />;
       default:
@@ -87,11 +177,13 @@ export function UploadWidget({
   };
 
   const getStatusText = () => {
-    switch (uploadStatus) {
+    const currentStatus = metadata ? hookStatus : uploadStatus;
+    switch (currentStatus) {
       case 'uploading':
         return isPaused ? 'Upload paused' : 'Uploading...';
       case 'processing':
         return 'Processing video...';
+      case 'completed':
       case 'complete':
         return 'Upload complete!';
       case 'error':
@@ -102,16 +194,20 @@ export function UploadWidget({
   };
 
   const getSubText = () => {
-    if (uploadStatus === 'uploading' && uploadProgress > 0) {
-      return `${Math.round(uploadProgress)}% uploaded`;
+    const currentStatus = metadata ? hookStatus : uploadStatus;
+    const currentProgress = metadata ? hookProgress : uploadProgress;
+    const currentError = metadata ? hookError : error;
+
+    if (currentStatus === 'uploading' && currentProgress > 0) {
+      return `${Math.round(currentProgress)}% uploaded`;
     }
-    if (uploadStatus === 'error') {
-      return error || 'Please try again';
+    if (currentStatus === 'error') {
+      return currentError || 'Please try again';
     }
-    if (uploadStatus === 'processing') {
+    if (currentStatus === 'processing') {
       return 'AI is analyzing your video...';
     }
-    return 'Supports MP4, MOV, AVI, MKV, WebM (max 500MB)';
+    return `Supports ${allowedFormats.map(f => f.split('/')[1].toUpperCase()).join(', ')} (max ${formatFileSize(maxFileSize)})`;
   };
 
   return (
@@ -152,11 +248,14 @@ export function UploadWidget({
             </div>
 
             {/* Upload Progress */}
-            {uploadStatus === 'uploading' && (
+            {(uploadStatus === 'uploading' || (metadata && hookStatus === 'uploading')) && (
               <div className="w-full space-y-2">
-                <Progress value={uploadProgress} className="h-2" />
+                <Progress 
+                  value={metadata ? hookProgress : uploadProgress} 
+                  className="h-2" 
+                />
                 <div className="flex items-center justify-between text-xs text-muted-foreground">
-                  <span>{Math.round(uploadProgress)}% complete</span>
+                  <span>{Math.round(metadata ? hookProgress : uploadProgress)}% complete</span>
                   <div className="flex items-center space-x-2">
                     <Button
                       variant="ghost"
@@ -179,7 +278,7 @@ export function UploadWidget({
             )}
 
             {/* Action Buttons */}
-            {uploadStatus === 'idle' && (
+            {(uploadStatus === 'idle' && (!metadata || hookStatus === 'idle')) && (
               <div className="flex flex-col sm:flex-row gap-3 w-full max-w-md">
                 <Button
                   onClick={(e) => {
@@ -188,6 +287,7 @@ export function UploadWidget({
                   }}
                   className="flex-1"
                   size="lg"
+                  disabled={isHookUploading}
                 >
                   <Upload className="h-4 w-4 mr-2" />
                   Choose File
@@ -200,6 +300,7 @@ export function UploadWidget({
                   variant="outline"
                   className="flex-1"
                   size="lg"
+                  disabled={isHookUploading}
                 >
                   <Camera className="h-4 w-4 mr-2" />
                   Record
@@ -208,15 +309,27 @@ export function UploadWidget({
             )}
 
             {/* Error State Actions */}
-            {uploadStatus === 'error' && (
+            {(uploadStatus === 'error' || (metadata && hookStatus === 'error')) && (
               <div className="flex gap-3">
-                <Button onClick={onRetry} size="lg">
-                  <Upload className="h-4 w-4 mr-2" />
+                <Button 
+                  onClick={() => {
+                    if (metadata) {
+                      resetUpload();
+                    } else {
+                      onRetry?.();
+                    }
+                  }} 
+                  size="lg"
+                >
+                  <RotateCcw className="h-4 w-4 mr-2" />
                   Try Again
                 </Button>
                 <Button
                   onClick={(e) => {
                     e.stopPropagation();
+                    if (metadata) {
+                      resetUpload();
+                    }
                     handleFileSelect();
                   }}
                   variant="outline"
@@ -229,11 +342,14 @@ export function UploadWidget({
             )}
 
             {/* Success State Actions */}
-            {uploadStatus === 'complete' && (
+            {(uploadStatus === 'complete' || (metadata && hookStatus === 'completed')) && (
               <div className="flex gap-3">
                 <Button
                   onClick={(e) => {
                     e.stopPropagation();
+                    if (metadata) {
+                      resetUpload();
+                    }
                     handleFileSelect();
                   }}
                   variant="outline"
@@ -249,13 +365,41 @@ export function UploadWidget({
       </Card>
 
       {/* Processing Status */}
-      {uploadStatus === 'processing' && (
+      {(uploadStatus === 'processing' || (metadata && hookStatus === 'processing')) && (
         <div className="mt-4 p-4 bg-blue-50 dark:bg-blue-950/20 rounded-lg border border-blue-200 dark:border-blue-800">
           <div className="flex items-center space-x-3">
             <div className="animate-spin rounded-full h-4 w-4 border-2 border-blue-600 border-t-transparent"></div>
             <div className="text-sm text-blue-700 dark:text-blue-300">
               <p className="font-medium">Processing your video...</p>
               <p className="text-xs">This may take a few minutes depending on video length</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* File Info */}
+      {selectedFile && (
+        <div className="mt-4 p-3 bg-muted/50 rounded-lg">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-2">
+              <FileVideo className="h-4 w-4 text-muted-foreground" />
+              <span className="text-sm font-medium truncate">{selectedFile.name}</span>
+            </div>
+            <div className="flex items-center space-x-2">
+              <Badge variant="outline" className="text-xs">
+                {formatFileSize(selectedFile.size)}
+              </Badge>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setSelectedFile(null);
+                  resetUpload();
+                }}
+                className="h-6 w-6 p-0"
+              >
+                <X className="h-3 w-3" />
+              </Button>
             </div>
           </div>
         </div>
