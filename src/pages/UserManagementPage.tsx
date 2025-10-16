@@ -491,7 +491,7 @@ export function UserManagementPage() {
                     <th className="text-left p-4">
                       <Checkbox
                         checked={selectedUsers.length === filteredAndSortedUsers.length && filteredAndSortedUsers.length > 0}
-                        onChange={(e) => handleSelectAll(e.target.checked)}
+                        onCheckedChange={(checked) => handleSelectAll(!!checked)}
                       />
                     </th>
                     <th className="text-left p-4">
@@ -544,7 +544,7 @@ export function UserManagementPage() {
                       <td className="p-4">
                         <Checkbox
                           checked={selectedUsers.includes(user.id)}
-                          onChange={(e) => handleSelectUser(user.id, e.target.checked)}
+                          onCheckedChange={(checked) => handleSelectUser(user.id, !!checked)}
                         />
                       </td>
                       <td className="p-4">

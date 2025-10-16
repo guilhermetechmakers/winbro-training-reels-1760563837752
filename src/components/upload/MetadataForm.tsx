@@ -358,7 +358,7 @@ export function MetadataForm({ onSubmit, isLoading = false, initialData }: Metad
             <Checkbox
               id="isCustomerSpecific"
               checked={watch("isCustomerSpecific")}
-              onChange={(e) => setValue("isCustomerSpecific", e.target.checked)}
+              onCheckedChange={(checked) => setValue("isCustomerSpecific", !!checked)}
             />
             <Label htmlFor="isCustomerSpecific" className="text-sm">
               This video is customer-specific (not for general use)
