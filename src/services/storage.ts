@@ -58,6 +58,9 @@ export class VideoStorageService {
     } = options;
 
     try {
+      // Validate file before upload
+      this.validateFile(file);
+
       // Initiate upload
       const uploadResponse = await videoProcessingApi.initiateUpload({
         fileName: file.name,
@@ -68,7 +71,8 @@ export class VideoStorageService {
 
       const videoId = uploadResponse.videoId;
       const uploadId = uploadResponse.uploadId;
-      const totalChunks = Math.ceil(file.size / chunkSize);
+      const actualChunkSize = uploadResponse.chunkSize || chunkSize;
+      const totalChunks = Math.ceil(file.size / actualChunkSize);
 
       // Initialize upload state
       const uploadState: ResumableUploadState = {
@@ -92,14 +96,14 @@ export class VideoStorageService {
         videoId,
         uploadId,
         totalChunks,
-        chunkSize,
+        actualChunkSize,
         maxRetries,
         onProgress,
         onError,
         abortController.signal
       );
 
-      // Complete upload
+      // Complete upload and start processing
       await videoProcessingApi.completeUpload({
         videoId,
         uploadId,
@@ -359,6 +363,65 @@ export class VideoStorageService {
    */
   private delay(ms: number): Promise<void> {
     return new Promise(resolve => setTimeout(resolve, ms));
+  }
+
+  /**
+   * Validate file before upload
+   */
+  private validateFile(file: File): void {
+    // Check file type
+    const allowedTypes = [
+      'video/mp4',
+      'video/quicktime',
+      'video/x-msvideo',
+      'video/x-matroska',
+      'video/webm',
+      'video/avi',
+      'video/mov'
+    ];
+
+    if (!allowedTypes.includes(file.type)) {
+      throw new Error(`Unsupported file type: ${file.type}. Supported types: ${allowedTypes.join(', ')}`);
+    }
+
+    // Check file size (500MB limit)
+    const maxSize = 500 * 1024 * 1024; // 500MB
+    if (file.size > maxSize) {
+      throw new Error(`File size too large: ${this.formatFileSize(file.size)}. Maximum size: ${this.formatFileSize(maxSize)}`);
+    }
+
+    // Check minimum file size (1MB)
+    const minSize = 1024 * 1024; // 1MB
+    if (file.size < minSize) {
+      throw new Error(`File size too small: ${this.formatFileSize(file.size)}. Minimum size: ${this.formatFileSize(minSize)}`);
+    }
+  }
+
+  /**
+   * Format file size for display
+   */
+  private formatFileSize(bytes: number): string {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  }
+
+  /**
+   * Get upload statistics
+   */
+  getUploadStats(): {
+    activeUploads: number;
+    completedUploads: number;
+    totalUploads: number;
+  } {
+    const uploads = Array.from(this.uploadStates.values());
+    return {
+      activeUploads: uploads.filter(u => !u.isCompleted && !u.isPaused).length,
+      completedUploads: uploads.filter(u => u.isCompleted).length,
+      totalUploads: uploads.length
+    };
   }
 
   /**

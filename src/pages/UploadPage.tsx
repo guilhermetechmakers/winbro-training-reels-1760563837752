@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { toast } from "sonner";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -78,8 +79,15 @@ export function UploadPage() {
   }, [uploadState.currentFile?.status, uploadState.aiResults, updateAIResults]);
 
   const handleFileSelect = async (file: File) => {
-    await uploadFile(file);
-    setCurrentStep('metadata');
+    try {
+      const videoId = await uploadFile(file);
+      if (videoId) {
+        setUploadedVideoId(videoId);
+        setCurrentStep('metadata');
+      }
+    } catch (error) {
+      console.error('File upload error:', error);
+    }
   };
 
   const handleUploadComplete = (videoId: string) => {
@@ -109,8 +117,15 @@ export function UploadPage() {
 
   const handleMetadataSubmit = async (metadata: VideoMetadata) => {
     updateMetadata(metadata);
-    await completeUpload(metadata);
-    setCurrentStep('processing');
+    
+    // If we have a current file, complete the upload with metadata
+    if (uploadState.currentFile) {
+      await completeUpload(metadata);
+      setCurrentStep('processing');
+    } else {
+      // If no current file, we need to upload first
+      toast.error("Please upload a file first");
+    }
   };
 
   const handlePublish = async (publishNow: boolean) => {

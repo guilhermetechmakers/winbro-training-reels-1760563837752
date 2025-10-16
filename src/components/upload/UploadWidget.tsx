@@ -16,7 +16,7 @@ import {
   Loader2
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useVideoUpload } from "@/hooks/use-video-processing";
+import { useUpload } from "@/hooks/use-upload";
 import type { VideoMetadata } from "@/types";
 
 interface UploadWidgetProps {
@@ -57,14 +57,12 @@ export function UploadWidget({
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const {
-    uploadProgress: hookProgress,
-    uploadStatus: hookStatus,
-    uploadError: hookError,
-    videoId,
-    upload: uploadFile,
+    uploadState,
+    uploadFile,
+    resetUpload,
     isUploading: isHookUploading,
-    reset: resetUpload
-  } = useVideoUpload();
+    uploadError: hookError
+  } = useUpload();
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -116,7 +114,10 @@ export function UploadWidget({
     try {
       if (metadata) {
         // Use the enhanced upload with processing
-        await uploadFile({ file, metadata });
+        const videoId = await uploadFile(file, metadata);
+        if (videoId && onUploadComplete) {
+          onUploadComplete(videoId);
+        }
       } else {
         // Use the simple file selection
         onFileSelect(file);
@@ -138,15 +139,16 @@ export function UploadWidget({
 
   // Handle upload completion
   useEffect(() => {
-    if (videoId && onUploadComplete) {
-      onUploadComplete(videoId);
+    const currentVideoId = uploadState.currentFile?.processingJobId;
+    if (currentVideoId && onUploadComplete) {
+      onUploadComplete(currentVideoId);
     }
-  }, [videoId, onUploadComplete]);
+  }, [uploadState.currentFile?.processingJobId, onUploadComplete]);
 
   // Handle upload error
   useEffect(() => {
     if (hookError && onUploadError) {
-      onUploadError(hookError);
+      onUploadError(hookError.message || 'Upload failed');
     }
   }, [hookError, onUploadError]);
 
@@ -160,9 +162,8 @@ export function UploadWidget({
   }, [selectedFile, resetUpload]);
 
   const getStatusIcon = () => {
-    const currentStatus = metadata ? hookStatus : uploadStatus;
+    const currentStatus = metadata ? uploadState.currentFile?.status : uploadStatus;
     switch (currentStatus) {
-      case 'completed':
       case 'complete':
         return <CheckCircle className="h-8 w-8 text-green-500" />;
       case 'error':
@@ -177,13 +178,12 @@ export function UploadWidget({
   };
 
   const getStatusText = () => {
-    const currentStatus = metadata ? hookStatus : uploadStatus;
+    const currentStatus = metadata ? uploadState.currentFile?.status : uploadStatus;
     switch (currentStatus) {
       case 'uploading':
         return isPaused ? 'Upload paused' : 'Uploading...';
       case 'processing':
         return 'Processing video...';
-      case 'completed':
       case 'complete':
         return 'Upload complete!';
       case 'error':
@@ -194,15 +194,15 @@ export function UploadWidget({
   };
 
   const getSubText = () => {
-    const currentStatus = metadata ? hookStatus : uploadStatus;
-    const currentProgress = metadata ? hookProgress : uploadProgress;
+    const currentStatus = metadata ? uploadState.currentFile?.status : uploadStatus;
+    const currentProgress = metadata ? uploadState.currentFile?.progress : uploadProgress;
     const currentError = metadata ? hookError : error;
 
-    if (currentStatus === 'uploading' && currentProgress > 0) {
+    if (currentStatus === 'uploading' && currentProgress && currentProgress > 0) {
       return `${Math.round(currentProgress)}% uploaded`;
     }
     if (currentStatus === 'error') {
-      return currentError || 'Please try again';
+      return (currentError instanceof Error ? currentError.message : currentError) || 'Please try again';
     }
     if (currentStatus === 'processing') {
       return 'AI is analyzing your video...';
@@ -248,14 +248,14 @@ export function UploadWidget({
             </div>
 
             {/* Upload Progress */}
-            {(uploadStatus === 'uploading' || (metadata && hookStatus === 'uploading')) && (
+            {(uploadStatus === 'uploading' || (metadata && uploadState.currentFile?.status === 'uploading')) && (
               <div className="w-full space-y-2">
                 <Progress 
-                  value={metadata ? hookProgress : uploadProgress} 
+                  value={metadata ? uploadState.currentFile?.progress : uploadProgress} 
                   className="h-2" 
                 />
                 <div className="flex items-center justify-between text-xs text-muted-foreground">
-                  <span>{Math.round(metadata ? hookProgress : uploadProgress)}% complete</span>
+                  <span>{Math.round((metadata ? uploadState.currentFile?.progress : uploadProgress) || 0)}% complete</span>
                   <div className="flex items-center space-x-2">
                     <Button
                       variant="ghost"
@@ -278,7 +278,7 @@ export function UploadWidget({
             )}
 
             {/* Action Buttons */}
-            {(uploadStatus === 'idle' && (!metadata || hookStatus === 'idle')) && (
+            {(uploadStatus === 'idle' && (!metadata || !uploadState.currentFile)) && (
               <div className="flex flex-col sm:flex-row gap-3 w-full max-w-md">
                 <Button
                   onClick={(e) => {
@@ -309,7 +309,7 @@ export function UploadWidget({
             )}
 
             {/* Error State Actions */}
-            {(uploadStatus === 'error' || (metadata && hookStatus === 'error')) && (
+            {(uploadStatus === 'error' || (metadata && uploadState.currentFile?.status === 'error')) && (
               <div className="flex gap-3">
                 <Button 
                   onClick={() => {
@@ -342,7 +342,7 @@ export function UploadWidget({
             )}
 
             {/* Success State Actions */}
-            {(uploadStatus === 'complete' || (metadata && hookStatus === 'completed')) && (
+            {(uploadStatus === 'complete' || (metadata && uploadState.currentFile?.status === 'complete')) && (
               <div className="flex gap-3">
                 <Button
                   onClick={(e) => {
@@ -365,7 +365,7 @@ export function UploadWidget({
       </Card>
 
       {/* Processing Status */}
-      {(uploadStatus === 'processing' || (metadata && hookStatus === 'processing')) && (
+      {(uploadStatus === 'processing' || (metadata && uploadState.currentFile?.status === 'processing')) && (
         <div className="mt-4 p-4 bg-blue-50 dark:bg-blue-950/20 rounded-lg border border-blue-200 dark:border-blue-800">
           <div className="flex items-center space-x-3">
             <div className="animate-spin rounded-full h-4 w-4 border-2 border-blue-600 border-t-transparent"></div>

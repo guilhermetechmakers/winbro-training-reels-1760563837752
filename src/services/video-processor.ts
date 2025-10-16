@@ -2,6 +2,7 @@ import { videoProcessingApi, type VideoProcessingStatus, type ProcessingStage } 
 
 export interface TranscodingJob {
   videoId: string;
+  uploadId?: string;
   inputPath: string;
   outputFormats: VideoFormat[];
   priority: 'high' | 'normal' | 'low';
@@ -10,6 +11,10 @@ export interface TranscodingJob {
     description?: string;
     duration?: number;
     resolution?: { width: number; height: number };
+    machineModel?: string;
+    process?: string;
+    tags?: string[];
+    customerAccess?: string[];
   };
 }
 
@@ -88,14 +93,14 @@ export class VideoProcessor {
     try {
       const response = await videoProcessingApi.completeUpload({
         videoId: job.videoId,
-        uploadId: '', // This would be set during upload
+        uploadId: job.uploadId || '', // This would be set during upload
         metadata: {
           title: job.metadata.title,
           description: job.metadata.description,
-          machineModel: '', // This would be set from metadata
-          process: '', // This would be set from metadata
-          tags: [], // This would be set from metadata
-          customerAccess: []
+          machineModel: job.metadata.machineModel || '',
+          process: job.metadata.process || '',
+          tags: job.metadata.tags || [],
+          customerAccess: job.metadata.customerAccess || []
         }
       });
 

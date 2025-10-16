@@ -45,7 +45,8 @@ export function ProcessingStatus({
     retry,
     cancel,
     isRetrying,
-    isCancelling
+    isCancelling,
+    isLoadingStatus
   } = useVideoProcessing({ videoId });
 
   const [showRetryDialog, setShowRetryDialog] = useState(false);
@@ -130,6 +131,17 @@ export function ProcessingStatus({
     const remainingSeconds = Math.round(seconds % 60);
     return `${minutes}m ${remainingSeconds}s`;
   };
+
+  if (isLoadingStatus) {
+    return (
+      <div className="flex items-center space-x-3 p-3 bg-muted/50 rounded-lg">
+        <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-medium">Loading processing status...</p>
+        </div>
+      </div>
+    );
+  }
 
   if (compact) {
     return (

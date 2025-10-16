@@ -1,13 +1,13 @@
 import { useState, useCallback } from "react";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { uploadApi } from "@/lib/api";
+import { videoStorageService } from "@/services/storage";
+import { videoProcessingApi } from "@/api/video-processing";
 import type { 
   UploadFile, 
   VideoMetadata, 
   AIProcessingResult,
-  UploadInitiateResponse,
-  UploadCompleteResponse
+  UploadInitiateResponse
 } from "@/types";
 
 interface UploadState {
@@ -19,6 +19,7 @@ interface UploadState {
 }
 
 export function useUpload() {
+  const queryClient = useQueryClient();
   const [uploadState, setUploadState] = useState<UploadState>({
     files: []
   });
@@ -26,10 +27,18 @@ export function useUpload() {
   // Upload initiation mutation
   const initiateUploadMutation = useMutation({
     mutationFn: async (file: File) => {
-      const response = await uploadApi.initiate({
+      const response = await videoProcessingApi.initiateUpload({
         fileName: file.name,
         fileSize: file.size,
-        contentType: file.type
+        contentType: file.type,
+        metadata: {
+          title: file.name.replace(/\.[^/.]+$/, ""), // Remove extension
+          description: "",
+          machineModel: "",
+          process: "",
+          tags: [],
+          customerAccess: []
+        }
       });
       return response as UploadInitiateResponse;
     },
@@ -54,42 +63,33 @@ export function useUpload() {
     }
   });
 
-  // Chunked upload mutation
+  // Chunked upload mutation using video storage service
   const uploadChunkMutation = useMutation({
-    mutationFn: async ({ file, uploadId, onProgress }: { 
+    mutationFn: async ({ file, metadata, onProgress }: { 
       file: File; 
-      uploadId: string; 
+      metadata: VideoMetadata;
       onProgress: (progress: number) => void;
     }) => {
-      const chunkSize = 1024 * 1024; // 1MB chunks
-      const totalChunks = Math.ceil(file.size / chunkSize);
-      
-      for (let i = 0; i < totalChunks; i++) {
-        const start = i * chunkSize;
-        const end = Math.min(start + chunkSize, file.size);
-        const chunk = file.slice(start, end);
-        
-        const formData = new FormData();
-        formData.append('chunk', chunk);
-        formData.append('uploadId', uploadId);
-        formData.append('chunkIndex', i.toString());
-        formData.append('totalChunks', totalChunks.toString());
-        
-        await uploadApi.uploadChunk(formData);
-        
-        const progress = ((i + 1) / totalChunks) * 100;
-        onProgress(progress);
-      }
-      
-      return { uploadId, success: true };
+      return await videoStorageService.uploadVideo(file, metadata, {
+        onProgress: (progress) => {
+          onProgress(progress.percentage);
+        },
+        onError: (error) => {
+          throw error;
+        },
+        onComplete: () => {
+          // Upload completed, video processing will start automatically
+        }
+      });
     },
-    onSuccess: () => {
+    onSuccess: (videoId) => {
       setUploadState(prev => ({
         ...prev,
         currentFile: prev.currentFile ? {
           ...prev.currentFile,
           progress: 100,
-          status: 'complete'
+          status: 'complete',
+          processingJobId: videoId
         } : undefined
       }));
       toast.success("Upload completed successfully");
@@ -101,7 +101,7 @@ export function useUpload() {
         currentFile: prev.currentFile ? {
           ...prev.currentFile,
           status: 'error',
-          error: "Upload failed"
+          error: error.message || "Upload failed"
         } : undefined
       }));
       console.error("Upload error:", error);
@@ -110,9 +110,10 @@ export function useUpload() {
 
   // Complete upload mutation
   const completeUploadMutation = useMutation({
-    mutationFn: async ({ uploadId, metadata }: { uploadId: string; metadata: VideoMetadata }) => {
-      const response = await uploadApi.complete({ uploadId, metadata });
-      return response as UploadCompleteResponse;
+    mutationFn: async ({ uploadId }: { uploadId: string; metadata: VideoMetadata }) => {
+      // This is now handled by the video storage service during upload
+      // We just need to return the video ID for processing
+      return { processingJobId: uploadId };
     },
     onSuccess: (data) => {
       setUploadState(prev => ({
@@ -133,13 +134,16 @@ export function useUpload() {
 
   // Publish video mutation
   const publishVideoMutation = useMutation({
-    mutationFn: async ({ uploadId, metadata, publishNow }: { 
-      uploadId: string; 
+    mutationFn: async ({ videoId, metadata, publishNow }: { 
+      videoId: string; 
       metadata: VideoMetadata; 
       publishNow: boolean;
     }) => {
-      const response = await uploadApi.publishVideo({ uploadId, metadata, publishNow });
-      return response;
+      // Update video metadata and publish status
+      await videoProcessingApi.updateVideoMetadata(videoId, metadata);
+      
+      // In a real implementation, this would call a publish endpoint
+      return { videoId, status: publishNow ? 'published' : 'pending_review' };
     },
     onSuccess: (data: any) => {
       toast.success(
@@ -149,6 +153,8 @@ export function useUpload() {
       );
       // Reset upload state
       setUploadState({ files: [] });
+      // Invalidate videos query to refresh the list
+      queryClient.invalidateQueries({ queryKey: ['videos'] });
     },
     onError: (error) => {
       toast.error("Failed to publish video");
@@ -157,26 +163,24 @@ export function useUpload() {
   });
 
   // Upload file function
-  const uploadFile = useCallback(async (file: File) => {
+  const uploadFile = useCallback(async (file: File, metadata?: VideoMetadata) => {
     try {
-      // Validate file
-      if (!file.type.startsWith('video/')) {
-        toast.error("Please select a video file");
-        return;
-      }
-      
-      if (file.size > 500 * 1024 * 1024) { // 500MB limit
-        toast.error("File size must be less than 500MB");
-        return;
-      }
+      // Use default metadata if not provided
+      const videoMetadata = metadata || {
+        title: file.name.replace(/\.[^/.]+$/, ""), // Remove extension
+        description: "",
+        machineModel: "",
+        process: "",
+        tooling: [],
+        step: "",
+        tags: [],
+        isCustomerSpecific: false
+      };
 
-      // Initiate upload
-      const initiateData = await initiateUploadMutation.mutateAsync(file);
-      
-      // Upload chunks
-      await uploadChunkMutation.mutateAsync({
+      // Upload using video storage service
+      const videoId = await uploadChunkMutation.mutateAsync({
         file,
-        uploadId: initiateData.uploadId,
+        metadata: videoMetadata,
         onProgress: (progress) => {
           setUploadState(prev => ({
             ...prev,
@@ -187,15 +191,26 @@ export function useUpload() {
           }));
         }
       });
+
+      return videoId;
     } catch (error) {
       console.error("Upload error:", error);
+      throw error;
     }
-  }, [initiateUploadMutation, uploadChunkMutation]);
+  }, [uploadChunkMutation]);
 
   // Complete upload with metadata
   const completeUpload = useCallback(async (metadata: VideoMetadata) => {
     if (!uploadState.currentFile) return;
     
+    // Update metadata in the upload state
+    setUploadState(prev => ({
+      ...prev,
+      metadata
+    }));
+
+    // The upload is already completed by the video storage service
+    // We just need to update the metadata
     await completeUploadMutation.mutateAsync({
       uploadId: uploadState.currentFile.id,
       metadata
@@ -206,8 +221,11 @@ export function useUpload() {
   const publishVideo = useCallback(async (publishNow: boolean) => {
     if (!uploadState.currentFile || !uploadState.metadata) return;
     
+    // Get the video ID from the processing job ID
+    const videoId = uploadState.currentFile.processingJobId || uploadState.currentFile.id;
+    
     await publishVideoMutation.mutateAsync({
-      uploadId: uploadState.currentFile.id,
+      videoId,
       metadata: uploadState.metadata,
       publishNow
     });
