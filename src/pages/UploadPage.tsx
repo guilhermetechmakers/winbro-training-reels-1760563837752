@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { toast } from "sonner";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -15,14 +14,14 @@ import {
   Loader2
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useUpload } from "@/hooks/use-upload";
+import { useVideoUpload } from "@/hooks/use-video-processing";
 import { UploadWidget } from "@/components/upload/UploadWidget";
 import { ProcessingStatus } from "@/components/upload/ProcessingStatus";
 import { CaptureGuidelines } from "@/components/upload/CaptureGuidelines";
 import { MetadataForm } from "@/components/upload/MetadataForm";
 import { TranscriptEditor } from "@/components/upload/TranscriptEditor";
 import { ThumbnailSelector } from "@/components/upload/ThumbnailSelector";
-import type { VideoMetadata, AIProcessingResult } from "@/types";
+import type { VideoMetadata } from "@/types";
 
 type UploadStep = 'upload' | 'metadata' | 'processing' | 'review' | 'complete';
 
@@ -33,58 +32,26 @@ export function UploadPage() {
   const [showProcessingStatus, setShowProcessingStatus] = useState(false);
   
   const {
-    uploadState,
-    uploadFile,
-    completeUpload,
-    publishVideo,
+    aiResults,
+    isUploading,
     updateMetadata,
     updateAIResults,
-    selectThumbnail,
-    resetUpload,
-    isCompleting,
-    isPublishing
-  } = useUpload();
+    selectThumbnail
+  } = useVideoUpload();
 
-  // Mock AI processing simulation
+  // Handle AI processing completion
   useEffect(() => {
-    if (uploadState.currentFile?.status === 'processing' && !uploadState.aiResults) {
-      // Simulate AI processing
-      setTimeout(() => {
-        const mockAIResults: AIProcessingResult = {
-          transcript: {
-            text: "This is a sample transcript of the video content. It demonstrates the machining process step by step.",
-            segments: [
-              { start: 0, end: 5, text: "First, we'll set up the workpiece" },
-              { start: 5, end: 10, text: "Next, we'll align the cutting tool" },
-              { start: 10, end: 15, text: "Then we'll begin the machining operation" },
-              { start: 15, end: 20, text: "Finally, we'll inspect the finished part" }
-            ]
-          },
-          suggestedTags: [
-            { tag: "Machining", confidence: 0.95 },
-            { tag: "Setup", confidence: 0.87 },
-            { tag: "Quality Control", confidence: 0.82 }
-          ],
-          thumbnails: [
-            "https://via.placeholder.com/300x200/4F46E5/FFFFFF?text=Thumbnail+1",
-            "https://via.placeholder.com/300x200/059669/FFFFFF?text=Thumbnail+2",
-            "https://via.placeholder.com/300x200/DC2626/FFFFFF?text=Thumbnail+3",
-            "https://via.placeholder.com/300x200/7C3AED/FFFFFF?text=Thumbnail+4"
-          ]
-        };
-        updateAIResults(mockAIResults);
-        setCurrentStep('review');
-      }, 3000);
+    if (aiResults && currentStep === 'processing') {
+      setCurrentStep('review');
     }
-  }, [uploadState.currentFile?.status, uploadState.aiResults, updateAIResults]);
+  }, [aiResults, currentStep]);
 
-  const handleFileSelect = async (file: File) => {
+  const handleFileSelect = async () => {
     try {
-      const videoId = await uploadFile(file);
-      if (videoId) {
-        setUploadedVideoId(videoId);
-        setCurrentStep('metadata');
-      }
+      // For now, just set the file and move to metadata step
+      // The actual upload will happen when metadata is submitted
+      setUploadedVideoId('temp-video-id');
+      setCurrentStep('metadata');
     } catch (error) {
       console.error('File upload error:', error);
     }
@@ -118,25 +85,19 @@ export function UploadPage() {
   const handleMetadataSubmit = async (metadata: VideoMetadata) => {
     updateMetadata(metadata);
     
-    // If we have a current file, complete the upload with metadata
-    if (uploadState.currentFile) {
-      await completeUpload(metadata);
-      setCurrentStep('processing');
-    } else {
-      // If no current file, we need to upload first
-      toast.error("Please upload a file first");
-    }
+    // Move to processing step after metadata is submitted
+    setCurrentStep('processing');
   };
 
   const handlePublish = async (publishNow: boolean) => {
-    await publishVideo(publishNow);
+    // In a real implementation, this would publish the video
+    console.log('Publishing video:', publishNow);
     setCurrentStep('complete');
   };
 
   const handleRetry = () => {
-    if (uploadState.currentFile) {
-      uploadFile(uploadState.currentFile.file);
-    }
+    // In a real implementation, this would retry the upload
+    console.log('Retrying upload');
   };
 
   const handlePause = () => {
@@ -202,14 +163,10 @@ export function UploadPage() {
               onCameraCapture={handleCameraCapture}
               onUploadComplete={handleUploadComplete}
               onUploadError={handleUploadError}
-              uploadProgress={uploadState.currentFile?.progress}
-              uploadStatus={uploadState.currentFile?.status}
-              error={uploadState.currentFile?.error}
               onRetry={handleRetry}
               onPause={handlePause}
               onResume={handleResume}
               isPaused={isPaused}
-              metadata={uploadState.metadata}
             />
           </div>
         );
@@ -226,7 +183,7 @@ export function UploadPage() {
             
             <MetadataForm
               onSubmit={handleMetadataSubmit}
-              isLoading={isCompleting}
+              isLoading={isUploading}
             />
           </div>
         );
@@ -277,17 +234,17 @@ export function UploadPage() {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               <div className="lg:col-span-2 space-y-6">
                 <TranscriptEditor
-                  transcript={uploadState.aiResults?.transcript || { text: "", segments: [] }}
+                  transcript={aiResults?.transcript || { text: "", segments: [] }}
                   onTranscriptChange={(transcript) => {
-                    if (uploadState.aiResults) {
-                      updateAIResults({ ...uploadState.aiResults, transcript });
+                    if (aiResults) {
+                      updateAIResults({ ...aiResults, transcript });
                     }
                   }}
                 />
                 
                 <ThumbnailSelector
-                  thumbnails={uploadState.aiResults?.thumbnails || []}
-                  selectedThumbnail={uploadState.selectedThumbnail}
+                  thumbnails={aiResults?.thumbnails || []}
+                  selectedThumbnail={aiResults?.selectedThumbnail}
                   onThumbnailSelect={selectThumbnail}
                   onCustomUpload={(file) => {
                     console.log("Custom thumbnail upload:", file);
@@ -305,7 +262,7 @@ export function UploadPage() {
                       onClick={() => handlePublish(true)}
                       className="w-full"
                       size="lg"
-                      disabled={isPublishing}
+                      disabled={false}
                     >
                       <Send className="h-4 w-4 mr-2" />
                       Publish Now
@@ -316,17 +273,14 @@ export function UploadPage() {
                       variant="outline"
                       className="w-full"
                       size="lg"
-                      disabled={isPublishing}
+                      disabled={false}
                     >
                       <Eye className="h-4 w-4 mr-2" />
                       Submit for Review
                     </Button>
                     
                     <div className="text-xs text-muted-foreground text-center">
-                      {uploadState.metadata?.isCustomerSpecific 
-                        ? "This video is customer-specific" 
-                        : "This video will be available to all users"
-                      }
+                      This video will be available to all users
                     </div>
                   </CardContent>
                 </Card>
@@ -354,7 +308,6 @@ export function UploadPage() {
             <div className="flex gap-3 justify-center">
               <Button
                 onClick={() => {
-                  resetUpload();
                   setCurrentStep('upload');
                 }}
                 variant="outline"

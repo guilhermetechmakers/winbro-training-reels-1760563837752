@@ -1,4 +1,12 @@
-import { videoProcessingApi, type VideoProcessingStatus, type ProcessingStage } from "@/api/video-processing";
+import { videoProcessingApi, VideoProcessingWebSocket, type VideoProcessingStatus, type ProcessingStage } from "@/api/video-processing";
+import { videoStorageService } from "./storage";
+import type { 
+  VideoMetadata, 
+  ProcessedVideo,
+  AIProcessingResult,
+  VideoThumbnail,
+  UploadProgress
+} from "@/types";
 
 export interface TranscodingJob {
   videoId: string;
@@ -44,7 +52,39 @@ export interface ProcessingJobStatus {
   error?: string;
 }
 
-export class VideoProcessor {
+export interface VideoProcessingService {
+  uploadVideo(file: File, metadata: VideoMetadata, options?: UploadOptions): Promise<UploadResponse>;
+  getProcessingStatus(videoId: string): Promise<VideoProcessingStatus>;
+  updateMetadata(videoId: string, updates: Partial<VideoMetadata>): Promise<void>;
+  getVideoDetails(videoId: string): Promise<ProcessedVideo>;
+  retryProcessing(videoId: string, reason?: string): Promise<void>;
+  deleteVideo(videoId: string): Promise<void>;
+  getThumbnails(videoId: string): Promise<VideoThumbnail[]>;
+  getTranscript(videoId: string): Promise<AIProcessingResult['transcript']>;
+  publishVideo(videoId: string, publishNow: boolean): Promise<void>;
+  subscribeToProcessingUpdates(videoId: string, onUpdate: (status: VideoProcessingStatus) => void): () => void;
+  pauseUpload(videoId: string): void;
+  resumeUpload(videoId: string): void;
+  cancelUpload(videoId: string): void;
+}
+
+export interface UploadResponse {
+  videoId: string;
+  uploadId: string;
+  status: 'uploading' | 'processing' | 'completed' | 'failed';
+  progress: number;
+  message: string;
+}
+
+export interface UploadOptions {
+  onProgress?: (progress: UploadProgress) => void;
+  onError?: (error: Error) => void;
+  onComplete?: (videoId: string) => void;
+  chunkSize?: number;
+  maxRetries?: number;
+}
+
+export class VideoProcessor implements VideoProcessingService {
   private static readonly DEFAULT_FORMATS: VideoFormat[] = [
     {
       format: 'hls',
@@ -85,6 +125,169 @@ export class VideoProcessor {
   ];
 
   private static readonly THUMBNAIL_TIMESTAMPS = [0.1, 0.25, 0.5, 0.75, 0.9]; // Generate thumbnails at these percentages
+  
+  private processingSubscriptions = new Map<string, () => void>();
+
+  /**
+   * Upload a video file with processing
+   */
+  async uploadVideo(file: File, metadata: VideoMetadata, options: UploadOptions = {}): Promise<UploadResponse> {
+    try {
+      // Convert VideoMetadata to the format expected by videoStorageService
+      const storageMetadata = {
+        title: metadata.title,
+        description: metadata.step, // Use step as description
+        machineModel: metadata.machineModel,
+        process: metadata.process,
+        tags: metadata.tags,
+        customerAccess: metadata.isCustomerSpecific ? ['customer'] : []
+      };
+
+      // Use the existing videoStorageService for chunked upload
+      const videoId = await videoStorageService.uploadVideo(file, storageMetadata, {
+        onProgress: (progress) => {
+          options.onProgress?.({
+            file_id: videoId,
+            filename: file.name,
+            progress: progress.percentage,
+            status: progress.percentage === 100 ? 'completed' : 'uploading'
+          });
+        },
+        onError: options.onError,
+        onComplete: options.onComplete,
+        chunkSize: options.chunkSize,
+        maxRetries: options.maxRetries
+      });
+
+      return {
+        videoId,
+        uploadId: videoId, // Use videoId as uploadId for consistency
+        status: 'processing',
+        progress: 100,
+        message: 'Upload completed, processing started'
+      };
+
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Upload failed';
+      options.onError?.(new Error(errorMessage));
+      throw error;
+    }
+  }
+
+  /**
+   * Get processing status
+   */
+  async getProcessingStatus(videoId: string): Promise<VideoProcessingStatus> {
+    return await videoProcessingApi.getProcessingStatus(videoId);
+  }
+
+  /**
+   * Update video metadata
+   */
+  async updateMetadata(videoId: string, updates: Partial<VideoMetadata>): Promise<void> {
+    // Convert VideoMetadata to the format expected by the API
+    const apiMetadata: any = {};
+    
+    if (updates.title) apiMetadata.title = updates.title;
+    if (updates.machineModel) apiMetadata.machineModel = updates.machineModel;
+    if (updates.process) apiMetadata.process = updates.process;
+    if (updates.tags) apiMetadata.tags = updates.tags;
+    if (updates.step) apiMetadata.description = updates.step;
+    if (updates.tooling) apiMetadata.tooling = updates.tooling;
+    if (updates.isCustomerSpecific !== undefined) {
+      apiMetadata.customerAccess = updates.isCustomerSpecific ? ['customer'] : [];
+    }
+
+    await videoProcessingApi.updateVideoMetadata(videoId, apiMetadata);
+  }
+
+  /**
+   * Get video details
+   */
+  async getVideoDetails(videoId: string): Promise<ProcessedVideo> {
+    return await videoProcessingApi.getVideoDetails(videoId);
+  }
+
+  /**
+   * Get thumbnails
+   */
+  async getThumbnails(videoId: string): Promise<VideoThumbnail[]> {
+    return await videoProcessingApi.getThumbnails(videoId);
+  }
+
+  /**
+   * Get transcript
+   */
+  async getTranscript(videoId: string): Promise<AIProcessingResult['transcript']> {
+    const transcriptData = await videoProcessingApi.getTranscript(videoId);
+    return {
+      text: transcriptData.content,
+      segments: transcriptData.segments
+    };
+  }
+
+  /**
+   * Publish video
+   */
+  async publishVideo(videoId: string, publishNow: boolean): Promise<void> {
+    // This would call a publish endpoint in a real implementation
+    // For now, we'll update the video status
+    console.log('Publishing video:', videoId, 'publishNow:', publishNow);
+    await this.updateMetadata(videoId, {
+      // Add publish status to metadata if needed
+    });
+  }
+
+  /**
+   * Subscribe to processing updates
+   */
+  subscribeToProcessingUpdates(videoId: string, onUpdate: (status: VideoProcessingStatus) => void): () => void {
+    // Clean up existing subscription
+    const existingCleanup = this.processingSubscriptions.get(videoId);
+    if (existingCleanup) {
+      existingCleanup();
+    }
+
+    // Create new WebSocket connection
+    const ws = new VideoProcessingWebSocket(videoId, onUpdate);
+    ws.connect();
+
+    const cleanup = () => {
+      ws.disconnect();
+      this.processingSubscriptions.delete(videoId);
+    };
+
+    this.processingSubscriptions.set(videoId, cleanup);
+    return cleanup;
+  }
+
+  /**
+   * Pause upload
+   */
+  pauseUpload(videoId: string): void {
+    videoStorageService.pauseUpload(videoId);
+  }
+
+  /**
+   * Resume upload
+   */
+  resumeUpload(videoId: string): void {
+    videoStorageService.resumeUpload(videoId);
+  }
+
+  /**
+   * Cancel upload
+   */
+  cancelUpload(videoId: string): void {
+    videoStorageService.cancelUpload(videoId);
+  }
+
+  /**
+   * Delete video
+   */
+  async deleteVideo(videoId: string): Promise<void> {
+    await videoStorageService.deleteVideo(videoId);
+  }
 
   /**
    * Queue a video for transcoding
@@ -274,13 +477,13 @@ export class VideoProcessor {
   /**
    * Retry failed processing job
    */
-  async retryProcessing(videoId: string, reason?: string): Promise<string> {
+  async retryProcessing(videoId: string, reason?: string): Promise<void> {
     try {
       const response = await videoProcessingApi.retryProcessing({
         videoId,
         reason
       });
-      return response.processingJobId;
+      console.log('Retry processing job ID:', response.processingJobId);
     } catch (error) {
       console.error('Failed to retry processing:', error);
       throw new Error('Failed to retry video processing');
@@ -340,15 +543,27 @@ export class VideoProcessor {
   }
 
   /**
-   * Get video details with all formats and thumbnails
+   * Cleanup method to disconnect all processing subscriptions
    */
-  async getVideoDetails(videoId: string) {
-    try {
-      return await videoProcessingApi.getVideoDetails(videoId);
-    } catch (error) {
-      console.error('Failed to get video details:', error);
-      throw new Error('Failed to get video details');
-    }
+  disconnectAllSubscriptions(): void {
+    this.processingSubscriptions.forEach((cleanup) => {
+      cleanup();
+    });
+    this.processingSubscriptions.clear();
+  }
+
+  /**
+   * Get upload statistics
+   */
+  getUploadStats() {
+    return videoStorageService.getUploadStats();
+  }
+
+  /**
+   * Cleanup completed uploads
+   */
+  cleanup(): void {
+    videoStorageService.cleanup();
   }
 
   /**

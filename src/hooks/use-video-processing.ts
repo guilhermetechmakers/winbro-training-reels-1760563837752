@@ -273,6 +273,9 @@ export function useVideoUpload() {
   const [uploadStatus, setUploadStatus] = useState<'idle' | 'uploading' | 'processing' | 'completed' | 'error'>('idle');
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [videoId, setVideoId] = useState<string | null>(null);
+  const [metadata, setMetadata] = useState<any>(null);
+  const [aiResults, setAIResults] = useState<any>(null);
+  const [selectedThumbnail, setSelectedThumbnail] = useState<string | null>(null);
 
   const uploadMutation = useMutation({
     mutationFn: async ({ file, metadata }: {
@@ -289,15 +292,33 @@ export function useVideoUpload() {
       setUploadStatus('uploading');
       setUploadError(null);
       setUploadProgress(0);
+      setMetadata(metadata);
 
       try {
-        // This would use the videoStorageService in a real implementation
-        // For now, we'll simulate the upload process
-        const response = await videoProcessingApi.initiateUpload({
-          fileName: file.name,
-          fileSize: file.size,
-          contentType: file.type,
-          metadata
+        // Convert metadata format for videoProcessor
+        const videoMetadata = {
+          title: metadata.title,
+          machineModel: metadata.machineModel,
+          process: metadata.process,
+          tooling: [],
+          step: metadata.description || '',
+          tags: metadata.tags,
+          isCustomerSpecific: metadata.customerAccess?.includes('customer') || false
+        };
+
+        const response = await videoProcessor.uploadVideo(file, videoMetadata, {
+          onProgress: (progress) => {
+            setUploadProgress(progress.progress);
+          },
+          onError: (error) => {
+            setUploadStatus('error');
+            setUploadError(error.message);
+          },
+          onComplete: (videoId) => {
+            setVideoId(videoId);
+            setUploadStatus('processing');
+            setUploadProgress(100);
+          }
         });
 
         setVideoId(response.videoId);
@@ -322,11 +343,60 @@ export function useVideoUpload() {
     }
   });
 
+  // Simulate AI processing results when processing completes
+  useEffect(() => {
+    if (uploadStatus === 'processing' && !aiResults) {
+      const timer = setTimeout(() => {
+        const mockAIResults = {
+          transcript: {
+            text: "This is a sample transcript of the video content. It demonstrates the machining process step by step.",
+            segments: [
+              { start: 0, end: 5, text: "First, we'll set up the workpiece" },
+              { start: 5, end: 10, text: "Next, we'll align the cutting tool" },
+              { start: 10, end: 15, text: "Then we'll begin the machining operation" },
+              { start: 15, end: 20, text: "Finally, we'll inspect the finished part" }
+            ]
+          },
+          suggestedTags: [
+            { tag: "Machining", confidence: 0.95 },
+            { tag: "Setup", confidence: 0.87 },
+            { tag: "Quality Control", confidence: 0.82 }
+          ],
+          thumbnails: [
+            "https://via.placeholder.com/300x200/4F46E5/FFFFFF?text=Thumbnail+1",
+            "https://via.placeholder.com/300x200/059669/FFFFFF?text=Thumbnail+2",
+            "https://via.placeholder.com/300x200/DC2626/FFFFFF?text=Thumbnail+3",
+            "https://via.placeholder.com/300x200/7C3AED/FFFFFF?text=Thumbnail+4"
+          ]
+        };
+        setAIResults(mockAIResults);
+        setUploadStatus('completed');
+      }, 3000);
+
+      return () => clearTimeout(timer);
+    }
+  }, [uploadStatus, aiResults]);
+
   const reset = useCallback(() => {
     setUploadProgress(0);
     setUploadStatus('idle');
     setUploadError(null);
     setVideoId(null);
+    setMetadata(null);
+    setAIResults(null);
+    setSelectedThumbnail(null);
+  }, []);
+
+  const updateMetadata = useCallback((newMetadata: any) => {
+    setMetadata(newMetadata);
+  }, []);
+
+  const updateAIResults = useCallback((newAIResults: any) => {
+    setAIResults(newAIResults);
+  }, []);
+
+  const selectThumbnail = useCallback((thumbnailUrl: string) => {
+    setSelectedThumbnail(thumbnailUrl);
   }, []);
 
   return {
@@ -334,8 +404,14 @@ export function useVideoUpload() {
     uploadStatus,
     uploadError,
     videoId,
+    metadata,
+    aiResults,
+    selectedThumbnail,
     upload: uploadMutation.mutate,
     isUploading: uploadMutation.isPending,
-    reset
+    reset,
+    updateMetadata,
+    updateAIResults,
+    selectThumbnail
   };
 }
