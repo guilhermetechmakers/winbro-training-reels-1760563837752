@@ -64,7 +64,7 @@ export default function App() {
                 <UploadPage />
               </ProtectedRoute>
             } />
-            <Route path="/clip/:id" element={
+            <Route path="/videos/:id" element={
               <ProtectedRoute>
                 <VideoPlayerPage />
               </ProtectedRoute>
