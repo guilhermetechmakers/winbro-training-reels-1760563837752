@@ -494,7 +494,14 @@ export function LandingPage() {
                 <li><Link to="/help" className="hover:text-foreground">Help Center</Link></li>
                 <li><Link to="/docs" className="hover:text-foreground">Documentation</Link></li>
                 <li><Link to="/status" className="hover:text-foreground">Status</Link></li>
+              </ul>
+            </div>
+            <div>
+              <h3 className="font-semibold mb-4">Legal</h3>
+              <ul className="space-y-2 text-sm text-muted-foreground">
                 <li><Link to="/privacy" className="hover:text-foreground">Privacy Policy</Link></li>
+                <li><Link to="/terms" className="hover:text-foreground">Terms of Service</Link></li>
+                <li><Link to="/cookie-policy" className="hover:text-foreground">Cookie Policy</Link></li>
               </ul>
             </div>
           </div>
