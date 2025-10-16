@@ -19,6 +19,7 @@ import { SettingsPage } from "@/pages/SettingsPage";
 import { ProfilePage } from "@/pages/ProfilePage";
 import { CheckoutPage } from "@/pages/CheckoutPage";
 import { OrderHistoryPage } from "@/pages/OrderHistoryPage";
+import { AdminDashboardPage } from "@/pages/AdminDashboardPage";
 import { NotFoundPage } from "@/pages/NotFoundPage";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 
@@ -107,6 +108,13 @@ export default function App() {
             <Route path="/orders" element={
               <ProtectedRoute>
                 <OrderHistoryPage />
+              </ProtectedRoute>
+            } />
+            
+            {/* Admin Routes */}
+            <Route path="/admin" element={
+              <ProtectedRoute requiredRole="admin">
+                <AdminDashboardPage />
               </ProtectedRoute>
             } />
             

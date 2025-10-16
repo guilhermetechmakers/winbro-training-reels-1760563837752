@@ -19,6 +19,7 @@ import {
   FileText,
   Play,
   Plus,
+  Shield,
 } from "lucide-react";
 import { useCurrentUser, useLogout } from "@/hooks/use-api";
 
@@ -84,6 +85,16 @@ export function Sidebar({ className, onMobileMenuClose }: SidebarProps) {
       badge: null,
     },
   ];
+
+  // Admin navigation - only show for admin users
+  const adminNavigation = userData?.role === 'admin' ? [
+    {
+      title: "Admin Dashboard",
+      href: "/admin",
+      icon: Shield,
+      badge: "Admin",
+    },
+  ] : [];
 
   const userNavigation = [
     {
@@ -171,6 +182,54 @@ export function Sidebar({ className, onMobileMenuClose }: SidebarProps) {
               );
             })}
           </nav>
+
+          {/* Admin Navigation */}
+          {adminNavigation.length > 0 && (
+            <>
+              <div className="my-6">
+                <div className="px-3 py-2">
+                  <div className="h-px bg-border/50" />
+                </div>
+              </div>
+              <nav className="space-y-1">
+                {adminNavigation.map((item) => {
+                  const isActive = location.pathname === item.href;
+                  return (
+                    <Link
+                      key={item.href}
+                      to={item.href}
+                      onClick={onMobileMenuClose}
+                      className={cn(
+                        "group flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium transition-all duration-200 relative",
+                        isActive
+                          ? "bg-gradient-to-r from-destructive to-destructive/90 text-destructive-foreground shadow-lg shadow-destructive/25"
+                          : "text-muted-foreground hover:text-foreground hover:bg-muted/50 hover:translate-x-1",
+                        isCollapsed && "justify-center"
+                      )}
+                    >
+                      <item.icon className={cn(
+                        "h-5 w-5 flex-shrink-0 transition-transform duration-200",
+                        isActive ? "text-destructive-foreground" : "text-muted-foreground group-hover:text-foreground group-hover:scale-110"
+                      )} />
+                      {!isCollapsed && (
+                        <>
+                          <span className="flex-1">{item.title}</span>
+                          {item.badge && (
+                            <span className="px-2 py-1 text-xs bg-destructive/20 text-destructive rounded-full font-semibold">
+                              {item.badge}
+                            </span>
+                          )}
+                        </>
+                      )}
+                      {isActive && (
+                        <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-destructive-foreground rounded-r-full" />
+                      )}
+                    </Link>
+                  );
+                })}
+              </nav>
+            </>
+          )}
 
           <Separator className="my-6 bg-border/50" />
 
